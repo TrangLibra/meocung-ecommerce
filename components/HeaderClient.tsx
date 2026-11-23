@@ -61,8 +61,16 @@ export default function HeaderClient() {
           </button>
         </form>
 
-        {/* Actions: Hotline & Cart with real count */}
-        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+        {/* Actions: Admin Edit, Hotline & Cart with real count */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-white hover:bg-black text-xs font-bold transition shadow-xs"
+            title="Trang quản trị & chỉnh sửa dữ liệu thời gian thực cho Mentor"
+          >
+            <span>⚙️ Quản Trị Admin</span>
+          </Link>
+
           <a
             href="tel:0382542737"
             className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full bg-orange-50 text-[#ff7f5c] hover:bg-orange-100 transition font-semibold text-xs border border-orange-200"
