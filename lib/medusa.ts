@@ -1,7 +1,7 @@
 import { Product, PRODUCTS } from './products';
 
 export const MEDUSA_BACKEND_URL =
-  process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'https://quan-ly-khach-san-if4s.onrender.com';
+  process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'https://meocung-medusa.onrender.com';
 
 export const MEDUSA_PUBLISHABLE_KEY =
   process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || 'pk_test_meocung_shop_2026';
