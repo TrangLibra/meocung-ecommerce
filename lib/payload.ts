@@ -52,34 +52,29 @@ export const DEFAULT_CATEGORIES: PayloadCategory[] = [
  * Lấy danh sách bài viết cẩm nang từ PayloadCMS (với fallback tự động sang bài viết mẫu)
  */
 export async function getPayloadPosts(limit = 10): Promise<PostModel[]> {
+  // 1. Ưu tiên lấy từ LocalStorage nếu đang chạy trên Client (Realtime live edits của Mentor)
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('gh_admin_posts');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (_) {}
+    }
+  }
+
+  // 2. Gọi API Route nội bộ PayloadCMS Engine trên Vercel
   try {
-    const res = await fetch(`${PAYLOAD_CMS_URL}/api/posts?limit=${limit}`, {
-      next: { revalidate: 60 }
-    });
+    const host = typeof window !== 'undefined' ? window.location.origin : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    const res = await fetch(`${host}/api/payload/posts`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.docs) && data.docs.length > 0) {
-        return data.docs.map((doc: any) => ({
-          id: doc.id,
-          title: doc.title,
-          slug: doc.slug,
-          content: doc.content,
-          image: doc.image?.url || doc.image || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800',
-          category: doc.category?.name || doc.category || 'Cẩm nang nuôi mèo',
-          status: doc.status || 'published',
-          date_created: doc.createdAt,
-          date_updated: doc.updatedAt,
-          seo: {
-            title: doc.seo?.title || doc.title,
-            meta_description: doc.seo?.meta_description || doc.title,
-            og_image: doc.seo?.og_image || doc.image?.url
-          }
-        }));
+        return data.docs;
       }
     }
-  } catch (err) {
-    console.warn('[PayloadCMS] Không kết nối được API, đang nạp dữ liệu cẩm nang Mèo Cưng dự phòng:', err);
-  }
+  } catch (_) {}
+
   return SAMPLE_MEOCUNG_POSTS;
 }
 

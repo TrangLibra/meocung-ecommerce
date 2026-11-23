@@ -36,39 +36,30 @@ export interface MedusaCart {
  * Lấy danh sách sản phẩm từ Medusa Store API (có fallback về mock PRODUCTS hạt & pate)
  */
 export async function getMedusaProducts(limit = 12): Promise<Product[]> {
-  try {
-    const res = await fetch(`${MEDUSA_BACKEND_URL}/store/products?limit=${limit}`, {
-      headers: {
-        'x-publishable-api-key': MEDUSA_PUBLISHABLE_KEY,
-        'Content-Type': 'application/json'
-      },
-      next: { revalidate: 60 }
-    });
+  // 1. Ưu tiên lấy từ LocalStorage nếu đang chạy trên Client (Realtime live edits của Mentor)
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('gh_admin_products');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (_) {}
+    }
+  }
 
+  // 2. Gọi API Route nội bộ Medusa Engine trên Vercel
+  try {
+    const host = typeof window !== 'undefined' ? window.location.origin : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    const res = await fetch(`${host}/api/medusa/products`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.products) && data.products.length > 0) {
-        return data.products.map((p: any) => ({
-          id: p.id,
-          name: p.title,
-          slug: p.handle || p.id,
-          categorySlug: (p.categories?.[0]?.handle as any) || 'thuc-an-hat',
-          categoryName: p.categories?.[0]?.name || 'Thức ăn hạt',
-          price: p.variants?.[0]?.prices?.[0]?.amount || 185000,
-          originalPrice: (p.variants?.[0]?.prices?.[0]?.amount || 185000) * 1.15,
-          image: p.thumbnail || p.images?.[0]?.url || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800',
-          rating: 5.0,
-          soldCount: 999,
-          weight: p.weight ? `${p.weight}g` : '1.5kg',
-          inStock: true,
-          description: p.description || 'Thức ăn dinh dưỡng chính hãng cho mèo.'
-        }));
+        return data.products;
       }
     }
-  } catch (err) {
-    console.warn('[MedusaJS] Không kết nối được Storefront API, nạp danh sách sản phẩm Mèo Cưng chuẩn bị sẵn:', err);
-  }
+  } catch (_) {}
 
+  // 3. Fallback sang Medusa Backend độc lập hoặc Mock PRODUCTS
   return PRODUCTS;
 }
 
