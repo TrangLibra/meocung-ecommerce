@@ -14,7 +14,7 @@ export interface PayloadBanner {
 }
 
 export interface PayloadCategory {
-  id: string | number;
+  id?: string | number;
   slug: string;
   name: string;
   icon: string;
