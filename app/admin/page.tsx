@@ -96,6 +96,33 @@ export default function MedusaAdminDashboardOnline() {
     showNotification(`Đã xóa sản phẩm: ${name}`);
   };
 
+  const handleSavePost = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPost) return;
+
+    let updatedList: PostModel[];
+    const exists = posts.some(p => p.id === editingPost.id);
+    if (exists) {
+      updatedList = posts.map(p => p.id === editingPost.id ? editingPost : p);
+      showNotification(`Đã cập nhật bài viết: "${editingPost.title}"`);
+    } else {
+      updatedList = [editingPost, ...posts];
+      showNotification(`Đã xuất bản bài viết cẩm nang mới: "${editingPost.title}"`);
+    }
+
+    setPosts(updatedList);
+    localStorage.setItem('gh_admin_posts', JSON.stringify(updatedList));
+    setEditingPost(null);
+  };
+
+  const handleDeletePost = (id: string, title: string) => {
+    if (!confirm(`Bạn có chắc chắn muốn xóa bài viết "${title}" không?`)) return;
+    const updated = posts.filter(p => p.id !== id);
+    setPosts(updated);
+    localStorage.setItem('gh_admin_posts', JSON.stringify(updated));
+    showNotification(`Đã xóa bài viết: ${title}`);
+  };
+
   const handleResetData = () => {
     if (!confirm('Khôi phục lại dữ liệu Medusa + Payload mặc định?')) return;
     localStorage.removeItem('gh_admin_products');
@@ -126,7 +153,7 @@ export default function MedusaAdminDashboardOnline() {
                   Mèo Cưng Store
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 </h1>
-                <p className="text-[11px] text-slate-400">Medusa v2 Admin</p>
+                <p className="text-[11px] text-slate-400">Medusa & Payload Engine</p>
               </div>
             </div>
           </div>
@@ -138,7 +165,7 @@ export default function MedusaAdminDashboardOnline() {
             </div>
 
             <button
-              onClick={() => { setActiveMenu('products'); setEditingProduct(null); }}
+              onClick={() => { setActiveMenu('products'); setEditingProduct(null); setEditingPost(null); }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeMenu === 'products' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`}
@@ -181,11 +208,11 @@ export default function MedusaAdminDashboardOnline() {
             </button>
 
             <div className="pt-5 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">
-              Payload Content Engine
+              PayloadCMS Engine
             </div>
 
             <button
-              onClick={() => { setActiveMenu('payload-posts'); setEditingProduct(null); }}
+              onClick={() => { setActiveMenu('payload-posts'); setEditingProduct(null); setEditingPost(null); }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeMenu === 'payload-posts' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`}
@@ -231,7 +258,7 @@ export default function MedusaAdminDashboardOnline() {
               <span>Admin</span>
               <ChevronRight className="w-3.5 h-3.5" />
               <span className="text-white font-medium capitalize">
-                {activeMenu === 'products' ? 'Sản phẩm hạt & pate' : activeMenu === 'categories' ? 'Danh mục Medusa' : activeMenu === 'orders' ? 'Quản lý đơn hàng' : activeMenu === 'customers' ? 'Khách hàng' : 'Cẩm nang nuôi mèo'}
+                {activeMenu === 'products' ? 'Sản phẩm hạt & pate' : activeMenu === 'categories' ? 'Danh mục Medusa' : activeMenu === 'orders' ? 'Quản lý đơn hàng' : activeMenu === 'customers' ? 'Khách hàng' : 'Cẩm nang nuôi mèo (PayloadCMS)'}
               </span>
             </div>
           </div>
@@ -261,6 +288,25 @@ export default function MedusaAdminDashboardOnline() {
               >
                 <Plus className="w-4 h-4" />
                 Thêm sản phẩm mới
+              </button>
+            )}
+
+            {activeMenu === 'payload-posts' && (
+              <button
+                onClick={() => setEditingPost({
+                  id: 'post-' + Date.now(),
+                  title: '',
+                  slug: 'bai-viet-moi-' + Date.now(),
+                  category: 'Kinh nghiệm nuôi mèo',
+                  publishedDate: new Date().toISOString().split('T')[0],
+                  coverImage: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&auto=format&fit=crop&q=80',
+                  summary: '',
+                  content: ''
+                })}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-xs rounded-lg shadow-lg shadow-indigo-500/20 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Viết bài cẩm nang mới
               </button>
             )}
           </div>
@@ -442,8 +488,9 @@ export default function MedusaAdminDashboardOnline() {
                     <tr>
                       <th className="py-3.5 px-4">Tiêu đề bài viết</th>
                       <th className="py-3.5 px-4">Danh mục</th>
-                      <th className="py-3.5 px-4">Ngày đăng</th>
-                      <th className="py-3.5 px-4 text-right">Trạng thái</th>
+                      <th className="py-3.5 px-4">Ngày đăng (Datetime)</th>
+                      <th className="py-3.5 px-4">Trạng thái</th>
+                      <th className="py-3.5 px-4 text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
@@ -456,8 +503,26 @@ export default function MedusaAdminDashboardOnline() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-slate-400">{p.publishedDate}</td>
-                        <td className="py-3.5 px-4 text-right">
+                        <td className="py-3.5 px-4">
                           <span className="text-emerald-400 font-medium">Xuất bản 🟢</span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setEditingPost(p)}
+                              className="p-1.5 rounded-md hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                              title="Chỉnh sửa"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePost(p.id, p.title)}
+                              className="p-1.5 rounded-md hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors"
+                              title="Xóa"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -566,6 +631,88 @@ export default function MedusaAdminDashboardOnline() {
                   className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-lg shadow-lg"
                 >
                   Lưu thay đổi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDIT / TẠO BÀI VIẾT CẨM NANG */}
+      {editingPost && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1E293B] border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-base text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-400" />
+                {posts.some(p => p.id === editingPost.id) ? 'Chỉnh sửa bài viết cẩm nang' : 'Viết bài cẩm nang mới'}
+              </h3>
+              <button onClick={() => setEditingPost(null)} className="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+
+            <form onSubmit={handleSavePost} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-400 mb-1 font-medium">Tiêu đề bài viết *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingPost.title}
+                  onChange={e => setEditingPost({ ...editingPost, title: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium">Chuyên mục *</label>
+                  <select
+                    value={editingPost.category}
+                    onChange={e => setEditingPost({ ...editingPost, category: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="Thức ăn hạt">Thức ăn hạt</option>
+                    <option value="Pate cho mèo">Pate cho mèo</option>
+                    <option value="Cát vệ sinh">Cát vệ sinh</option>
+                    <option value="Giống mèo">Giống mèo</option>
+                    <option value="Kinh nghiệm nuôi mèo">Kinh nghiệm nuôi mèo</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium">Ngày đăng (Datetime) *</label>
+                  <input
+                    type="date"
+                    required
+                    value={editingPost.publishedDate}
+                    onChange={e => setEditingPost({ ...editingPost, publishedDate: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-medium">Tóm tắt nội dung cẩm nang</label>
+                <textarea
+                  rows={3}
+                  value={editingPost.summary || ''}
+                  onChange={e => setEditingPost({ ...editingPost, summary: e.target.value })}
+                  placeholder="Nhập tóm tắt bài viết hướng dẫn..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingPost(null)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg shadow-lg"
+                >
+                  Xuất bản ngay
                 </button>
               </div>
             </form>
