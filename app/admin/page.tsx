@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { PRODUCTS, Product, CATEGORIES } from '@/lib/products';
 import { SAMPLE_MEOCUNG_POSTS, PostModel } from '@/lib/directus';
+import { getPayloadPosts } from '@/lib/payload';
 
 export default function MedusaAdminDashboardOnline() {
   const [activeMenu, setActiveMenu] = useState<'products' | 'categories' | 'orders' | 'customers' | 'payload-posts'>('products');
@@ -52,16 +53,23 @@ export default function MedusaAdminDashboardOnline() {
       setProducts(PRODUCTS);
     }
 
-    const savedPosts = localStorage.getItem('gh_admin_posts');
-    if (savedPosts) {
-      try {
-        setPosts(JSON.parse(savedPosts));
-      } catch {
-        setPosts(SAMPLE_MEOCUNG_POSTS);
+    // Tự động kéo trực tiếp toàn bộ bài viết từ PayloadCMS API
+    getPayloadPosts(100).then((livePosts) => {
+      if (livePosts && livePosts.length > 0) {
+        setPosts(livePosts);
+      } else {
+        const savedPosts = localStorage.getItem('gh_admin_posts');
+        if (savedPosts) {
+          try {
+            setPosts(JSON.parse(savedPosts));
+          } catch {
+            setPosts(SAMPLE_MEOCUNG_POSTS);
+          }
+        } else {
+          setPosts(SAMPLE_MEOCUNG_POSTS);
+        }
       }
-    } else {
-      setPosts(SAMPLE_MEOCUNG_POSTS);
-    }
+    });
   }, []);
 
   const showNotification = (msg: string) => {
