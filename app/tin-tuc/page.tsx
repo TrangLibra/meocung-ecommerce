@@ -1,12 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
-import { getPosts, getDirectusImageUrl } from '@/lib/directus';
+import { getPayloadPosts } from '@/lib/payload';
 import { Calendar, ChevronRight, BookOpen, Sparkles } from 'lucide-react';
 
-export const revalidate = 30;
+export const revalidate = 15;
 
 export default async function NewsPage() {
-  const posts = await getPosts();
+  const posts = await getPayloadPosts(100);
 
   return (
     <div className="space-y-8">
@@ -14,13 +14,13 @@ export default async function NewsPage() {
       <div className="bg-gradient-to-r from-orange-50 via-white to-orange-50 p-6 sm:p-8 rounded-3xl border border-orange-100 space-y-2">
         <span className="text-xs font-bold text-[#ff7f5c] uppercase tracking-wider flex items-center gap-1.5">
           <BookOpen className="w-4 h-4" />
-          Directus Headless CMS
+          PayloadCMS 3.0 Headless CMS
         </span>
         <h1 className="text-2xl sm:text-4xl font-black text-gray-900">
           Cẩm Nang Chăm Sóc Mèo & Tin Tức Mới
         </h1>
         <p className="text-xs sm:text-sm text-gray-600">
-          Tổng hợp kiến thức dinh dưỡng, cách phòng bệnh và cẩm nang nuôi dưỡng thú cưng chuẩn khoa học
+          Tổng hợp 100+ kiến thức dinh dưỡng, cách phòng bệnh và cẩm nang nuôi dưỡng thú cưng chuẩn khoa học từ PayloadCMS
         </p>
       </div>
 
@@ -35,7 +35,7 @@ export default async function NewsPage() {
               })
             : null;
 
-          const imageUrl = post.image ? getDirectusImageUrl(post.image, 600, 80) : null;
+          const imageUrl = post.image || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&auto=format&fit=crop&q=80';
           const metaDesc = post.seo?.meta_description || 'Xem hướng dẫn chi tiết chăm sóc mèo cưng...';
 
           return (
@@ -44,20 +44,14 @@ export default async function NewsPage() {
               className="group flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-[#ff7f5c]/50 hover:shadow-xl transition-all duration-300"
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt={post.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl bg-orange-50">
-                    🐱
-                  </div>
-                )}
+                <img
+                  src={imageUrl}
+                  alt={post.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  loading="lazy"
+                />
                 <div className="absolute top-3 left-3">
-                  <span className="px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-md text-[10px] font-bold text-[#ff7f5c] shadow-sm">
+                  <span className="px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-md text-[10px] font-bold text-[#ff7f5c] shadow-sm uppercase">
                     {post.category || 'Cẩm nang'}
                   </span>
                 </div>

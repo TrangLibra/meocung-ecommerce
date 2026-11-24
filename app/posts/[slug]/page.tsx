@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { getPostBySlug, getPosts, getDirectusImageUrl } from '@/lib/directus';
+import { getPayloadPostBySlug, getPayloadPosts } from '@/lib/payload';
 import { ArrowLeft, Calendar, ShieldCheck, Share2, Tag, BookOpen, ChevronRight, Phone } from 'lucide-react';
 
 interface Props {
@@ -10,10 +10,10 @@ interface Props {
   };
 }
 
-export const revalidate = 30;
+export const revalidate = 15;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const post = await getPostBySlug(params.slug);
+  const post = await getPayloadPostBySlug(params.slug);
 
   if (!post) {
     return {
@@ -23,13 +23,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const metaTitle = post.seo?.title || post.title;
   const metaDescription = post.seo?.meta_description || 'Cẩm nang nuôi dưỡng và chăm sóc mèo cưng chuẩn khoa học tại Mèo Cưng (meocung.vn).';
-  const canonicalUrl = post.seo?.canonical_url || `https://meocung.vn/posts/${post.slug}`;
-  const noIndex = Boolean(post.seo?.no_index);
-  const ogImageUrl = post.seo?.og_image
-    ? getDirectusImageUrl(post.seo.og_image, 1200, 85)
-    : post.image
-    ? getDirectusImageUrl(post.image, 1200, 85)
-    : undefined;
+  const canonicalUrl = post.seo?.canonical_url || `https://meocung-ecommerce-seven.vercel.app/posts/${post.slug}`;
+  const ogImageUrl = post.image || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&auto=format&fit=crop&q=80';
 
   return {
     title: `${metaTitle} | Mèo Cưng`,
@@ -37,30 +32,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: canonicalUrl,
     },
-    robots: {
-      index: !noIndex,
-      follow: !noIndex,
-    },
     openGraph: {
       title: metaTitle,
       description: metaDescription,
-      images: ogImageUrl ? [{ url: ogImageUrl }] : [],
+      images: [{ url: ogImageUrl }],
       type: 'article',
       publishedTime: post.date_created,
       modifiedTime: post.date_updated,
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: metaTitle,
-      description: metaDescription,
-      images: ogImageUrl ? [ogImageUrl] : [],
     },
   };
 }
 
 export default async function PostDetailPage({ params }: Props) {
-  const post = await getPostBySlug(params.slug);
-  const allPosts = await getPosts();
+  const post = await getPayloadPostBySlug(params.slug);
+  const allPosts = await getPayloadPosts(6);
 
   if (!post) {
     notFound();
@@ -76,7 +61,7 @@ export default async function PostDetailPage({ params }: Props) {
       })
     : null;
 
-  const coverImage = post.image ? getDirectusImageUrl(post.image, 1200, 85) : null;
+  const coverImage = post.image || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&auto=format&fit=crop&q=80';
 
   return (
     <div className="space-y-8">
