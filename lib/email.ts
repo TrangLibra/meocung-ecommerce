@@ -25,9 +25,9 @@ export interface SendEmailResult {
 export async function sendEmailWithGmailSMTP(
   input: SendEmailInput
 ): Promise<SendEmailResult> {
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD;
-  const fromName = process.env.GMAIL_FROM_NAME || process.env.SENDGRID_FROM_NAME || 'Mèo Cưng';
+  const gmailUser = process.env.GMAIL_USER?.replace(/[\uFEFF\r\n]/g, '').trim();
+  const gmailPass = process.env.GMAIL_APP_PASSWORD?.replace(/[\uFEFF\r\n]/g, '').trim();
+  const fromName = (process.env.GMAIL_FROM_NAME || process.env.SENDGRID_FROM_NAME || 'Mèo Cưng').replace(/[\uFEFF\r\n]/g, '').trim();
 
   if (!gmailUser || !gmailPass) {
     return {
@@ -72,9 +72,9 @@ export async function sendEmailWithSendGrid(
     return sendEmailWithGmailSMTP(input);
   }
 
-  const apiKey = process.env.SENDGRID_API_KEY;
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL;
-  const fromName = process.env.SENDGRID_FROM_NAME || 'Mèo Cưng';
+  const apiKey = process.env.SENDGRID_API_KEY?.replace(/[\uFEFF\r\n]/g, '').trim();
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL?.replace(/[\uFEFF\r\n]/g, '').trim();
+  const fromName = (process.env.SENDGRID_FROM_NAME || 'Mèo Cưng').replace(/[\uFEFF\r\n]/g, '').trim();
 
   if (!apiKey || !fromEmail) {
     console.warn(
