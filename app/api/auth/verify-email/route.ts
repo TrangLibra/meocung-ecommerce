@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import {
+  clearPendingCookie,
   createUserFromPending,
   deletePendingRegistration,
   findUserByEmail,
+  getPendingFromCookie,
   getPendingRegistration,
   incrementPendingAttempts,
+  setPendingCookie,
   setSessionCookie,
   toPublicUser,
   verifyPendingCode,
@@ -41,7 +44,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const pending = getPendingRegistration(email);
+  const pending = getPendingFromCookie(email) || getPendingRegistration(email);
   if (!pending) {
     return NextResponse.json(
       { error: 'Không tìm thấy yêu cầu đăng ký. Vui lòng đăng ký lại.' },
@@ -57,14 +60,17 @@ export async function POST(request: Request) {
   }
 
   if (!verifyPendingCode(pending.code, code)) {
-    const attempts = incrementPendingAttempts(email);
+    const attempts = (pending.attempts || 0) + 1;
+    incrementPendingAttempts(email);
     if (attempts >= MAX_OTP_ATTEMPTS) {
       deletePendingRegistration(email);
+      clearPendingCookie();
       return NextResponse.json(
         { error: 'Bạn đã nhập sai mã quá 5 lần. Vui lòng đăng ký lại để nhận mã mới.' },
         { status: 429 }
       );
     }
+    setPendingCookie({ ...pending, attempts });
     return NextResponse.json(
       { error: `Mã xác thực không chính xác (còn ${MAX_OTP_ATTEMPTS - attempts} lần thử).` },
       { status: 400 }
@@ -72,6 +78,7 @@ export async function POST(request: Request) {
   }
 
   const created = createUserFromPending(pending);
+  clearPendingCookie();
   const publicUser = toPublicUser(created);
   setSessionCookie(publicUser);
 

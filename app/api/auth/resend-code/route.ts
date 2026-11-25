@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getPendingRegistration, refreshPendingCode } from '@/lib/auth';
+import {
+  generateVerificationCode,
+  getPendingFromCookie,
+  getPendingRegistration,
+  refreshPendingCode,
+  setPendingCookie,
+} from '@/lib/auth';
 import { sendVerificationCodeEmail } from '@/lib/email';
 
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -25,7 +31,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const existing = getPendingRegistration(email);
+  const existing = getPendingFromCookie(email) || getPendingRegistration(email);
   if (!existing) {
     return NextResponse.json(
       { error: 'Không tìm thấy phiên đăng ký cho email này. Vui lòng đăng ký lại.' },
@@ -41,13 +47,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const updated = refreshPendingCode(email);
-  if (!updated) {
-    return NextResponse.json(
-      { error: 'Không tìm thấy phiên đăng ký cho email này. Vui lòng đăng ký lại.' },
-      { status: 404 }
-    );
-  }
+  const updated = refreshPendingCode(email) || {
+    ...existing,
+    code: generateVerificationCode(),
+    expiresAt: Date.now() + 10 * 60 * 1000,
+    attempts: 0,
+    lastSentAt: Date.now(),
+  };
+  setPendingCookie(updated);
 
   const emailResult = await sendVerificationCodeEmail({
     name: updated.name,

@@ -21,7 +21,9 @@ export interface PublicUser {
 }
 
 export const SESSION_COOKIE_NAME = 'meocung_session';
+export const PENDING_COOKIE_NAME = 'meocung_pending_reg';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+const PENDING_MAX_AGE = 60 * 10; // 10 minutes
 
 const AUTH_SECRET =
   process.env.AUTH_SECRET ||
@@ -337,6 +339,52 @@ export function setSessionCookie(user: PublicUser): void {
 
 export function clearSessionCookie(): void {
   cookies().set(SESSION_COOKIE_NAME, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 0,
+  });
+}
+
+export function setPendingCookie(pending: PendingRegistration): void {
+  const payloadB64 = Buffer.from(JSON.stringify(pending)).toString('base64url');
+  const signature = signPayload(payloadB64);
+  const token = `${payloadB64}.${signature}`;
+  cookies().set(PENDING_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: PENDING_MAX_AGE,
+  });
+}
+
+export function getPendingFromCookie(email: string): PendingRegistration | undefined {
+  try {
+    const token = cookies().get(PENDING_COOKIE_NAME)?.value;
+    if (!token) return undefined;
+    const [payloadB64, signature] = token.split('.');
+    if (!payloadB64 || !signature) return undefined;
+
+    const expectedSig = signPayload(payloadB64);
+    const sigBuf = Buffer.from(signature);
+    const expectedBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expectedBuf.length) return undefined;
+    if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return undefined;
+
+    const parsed: PendingRegistration = JSON.parse(
+      Buffer.from(payloadB64, 'base64url').toString('utf-8')
+    );
+    if (parsed.email.toLowerCase() !== email.trim().toLowerCase()) return undefined;
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+export function clearPendingCookie(): void {
+  cookies().set(PENDING_COOKIE_NAME, '', {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

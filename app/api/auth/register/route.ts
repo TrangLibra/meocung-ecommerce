@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { findUserByEmail, savePendingRegistration } from '@/lib/auth';
+import {
+  findUserByEmail,
+  savePendingRegistration,
+  setPendingCookie,
+} from '@/lib/auth';
 import { sendVerificationCodeEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
@@ -40,6 +44,7 @@ export async function POST(request: Request) {
     }
 
     const pending = savePendingRegistration({ name, email, phone, password });
+    setPendingCookie(pending);
     const emailResult = await sendVerificationCodeEmail({
       name: pending.name,
       email: pending.email,
