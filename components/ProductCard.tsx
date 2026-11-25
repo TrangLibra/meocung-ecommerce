@@ -43,7 +43,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
           <Link href={`/products/${product.id}`} className="block">
             <h3 className="font-bold text-gray-900 text-sm group-hover:text-[#ff7f5c] transition line-clamp-2 leading-snug">
-              {product.name}
+              {product.name || (product as any).title || 'Sản phẩm'}
             </h3>
           </Link>
         </div>
