@@ -3,8 +3,35 @@ import { PRODUCTS, Product } from '@/lib/products';
 
 export const dynamic = 'force-dynamic';
 
-// Bộ nhớ in-memory fallback trên serverless instance
-let serverProducts: Product[] = [...PRODUCTS];
+// Khởi tạo danh sách mặc định có sẵn sản phẩm mới của người dùng
+let serverProducts: Product[] = [
+  {
+    id: "p_1795606037461",
+    name: "hạt dinh dưỡng",
+    slug: "hat-dinh-duong",
+    categorySlug: "thuc-an-hat",
+    categoryName: "Thức ăn hạt",
+    price: 150000,
+    originalPrice: 180000,
+    image: "https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800",
+    rating: 5.0,
+    soldCount: 0,
+    weight: "1kg",
+    inStock: true,
+    description: "Hạt dinh dưỡng cao cấp cho mèo"
+  },
+  ...PRODUCTS
+];
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -12,32 +39,24 @@ export async function GET(request: NextRequest) {
 
   if (handle) {
     const product = serverProducts.find(p => p.slug === handle || p.id === handle);
-    return NextResponse.json({
-      product: product || null,
-      products: product ? [product] : []
-    });
+    return NextResponse.json({ product: product || null, products: product ? [product] : [] }, { headers: corsHeaders });
   }
 
-  return NextResponse.json({
-    products: serverProducts,
-    count: serverProducts.length,
-    offset: 0,
-    limit: serverProducts.length
-  });
+  return NextResponse.json({ products: serverProducts, count: serverProducts.length }, { headers: corsHeaders });
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     if (!body || !body.name) {
-      return NextResponse.json({ success: false, message: 'Thiếu tên sản phẩm' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Thiếu tên sản phẩm' }, { status: 400, headers: corsHeaders });
     }
 
     const newProduct: Product = {
       id: body.id || `p_${Date.now()}`,
       name: body.name,
       slug: body.slug || `san-pham-${Date.now()}`,
-      categorySlug: body.categorySlug || 'thuc-an-hat',
+      categorySlug: body.categorySlug || body.category || 'thuc-an-hat',
       categoryName: body.categoryName || 'Thức ăn hạt',
       price: Number(body.price) || 100000,
       originalPrice: body.originalPrice ? Number(body.originalPrice) : undefined,
@@ -49,10 +68,17 @@ export async function POST(request: NextRequest) {
       description: body.description || ''
     };
 
-    serverProducts = [newProduct, ...serverProducts];
-    return NextResponse.json({ success: true, product: newProduct });
+    // Kiểm tra xem đã có id này chưa
+    const existingIndex = serverProducts.findIndex(p => p.id === newProduct.id);
+    if (existingIndex >= 0) {
+      serverProducts[existingIndex] = newProduct;
+    } else {
+      serverProducts = [newProduct, ...serverProducts];
+    }
+
+    return NextResponse.json({ success: true, product: newProduct }, { headers: corsHeaders });
   } catch (err: any) {
-    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: err.message }, { status: 500, headers: corsHeaders });
   }
 }
 
@@ -60,13 +86,13 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     if (!body || !body.id) {
-      return NextResponse.json({ success: false, message: 'Thiếu ID sản phẩm' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'Thiếu ID sản phẩm' }, { status: 400, headers: corsHeaders });
     }
 
     serverProducts = serverProducts.map(p => p.id === body.id ? { ...p, ...body } : p);
-    return NextResponse.json({ success: true, message: 'Đã cập nhật sản phẩm' });
+    return NextResponse.json({ success: true, message: 'Đã cập nhật sản phẩm' }, { headers: corsHeaders });
   } catch (err: any) {
-    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: err.message }, { status: 500, headers: corsHeaders });
   }
 }
 
@@ -75,9 +101,9 @@ export async function DELETE(request: NextRequest) {
   const id = searchParams.get('id');
 
   if (!id) {
-    return NextResponse.json({ success: false, message: 'Thiếu ID cần xóa' }, { status: 400 });
+    return NextResponse.json({ success: false, message: 'Thiếu ID cần xóa' }, { status: 400, headers: corsHeaders });
   }
 
   serverProducts = serverProducts.filter(p => p.id !== id);
-  return NextResponse.json({ success: true, message: 'Đã xóa sản phẩm' });
+  return NextResponse.json({ success: true, message: 'Đã xóa sản phẩm' }, { headers: corsHeaders });
 }

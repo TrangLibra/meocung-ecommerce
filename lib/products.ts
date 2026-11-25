@@ -23,6 +23,21 @@ export const CATEGORIES = [
 
 export const PRODUCTS: Product[] = [
   {
+    id: 'p_1795606037461',
+    name: 'hạt dinh dưỡng',
+    slug: 'hat-dinh-duong',
+    categorySlug: 'thuc-an-hat',
+    categoryName: 'Thức ăn hạt',
+    price: 150000,
+    originalPrice: 180000,
+    image: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800',
+    rating: 5.0,
+    soldCount: 0,
+    weight: '1kg',
+    inStock: true,
+    description: 'Hạt dinh dưỡng cao cấp cho mèo phát triển khỏe mạnh.',
+  },
+  {
     id: 'p1',
     name: 'Thức Ăn Hạt Royal Canin Cho Mèo Trưởng Thành (Fit 32)',
     slug: 'thuc-an-hat-royal-canin-fit-32',
