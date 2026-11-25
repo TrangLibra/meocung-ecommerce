@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getPayloadPosts, getPayloadBanners } from '@/lib/payload';
 import { getMedusaProducts } from '@/lib/medusa';
 import { CATEGORIES } from '@/lib/products';
-import ProductCard from '@/components/ProductCard';
+import FeaturedProductsSection from '@/components/FeaturedProductsSection';
 import { Sparkles, ArrowRight, BookOpen, Calendar, ChevronRight, ShoppingBag } from 'lucide-react';
 
 export const revalidate = 30;
@@ -157,11 +157,7 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        <FeaturedProductsSection initialProducts={products} />
       </section>
 
       {/* 5. Cẩm nang Mèo Cưng Blog (Powered by PayloadCMS) */}

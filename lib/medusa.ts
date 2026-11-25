@@ -36,9 +36,9 @@ export interface MedusaCart {
  * Lấy danh sách sản phẩm từ Medusa Store API (có fallback về mock PRODUCTS hạt & pate)
  */
 export async function getMedusaProducts(limit = 12): Promise<Product[]> {
-  // 1. Ưu tiên lấy từ LocalStorage nếu đang chạy trên Client (Realtime live edits của Mentor)
+  // 1. Ưu tiên lấy từ LocalStorage nếu đang chạy trên Client (Realtime live edits của Admin)
   if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('gh_admin_products');
+    const saved = localStorage.getItem('mc_admin_products') || localStorage.getItem('gh_admin_products');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
