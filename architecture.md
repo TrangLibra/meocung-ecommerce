@@ -2,35 +2,33 @@
 
 > **Dự án:** Hệ thống Thương Mại Điện Tử & Quản Trị Cẩm Nang Chăm Sóc Mèo Cưng  
 > **Kiến trúc:** Headless / Decoupled Microservices Architecture  
-> **Ngăn xếp công nghệ:** Next.js (Storefront) + PayloadCMS 3.0 (Headless CMS) + MedusaJS v2 (E-commerce Core Engine) + Neon PostgreSQL Cloud.
+> **Giải pháp tích hợp:** Unified Next.js Admin Dashboard (ShadCN UI) nhúng PayloadCMS qua **iFrame** & kết nối MedusaJS Core API.
 
 ---
 
-## 1. Sơ đồ Kiến trúc Tổng thể (High-Level Architecture)
+## 1. Sơ đồ Kiến trúc Hệ thống Tổng thể (System Architecture)
 
 ```mermaid
 flowchart TB
-    subgraph ClientLayer ["1. TẦNG TRẢI NGHIỆM NGƯỜI DÙNG (FRONTEND & CLIENT)"]
-        SF["🛒 Next.js Storefront\n(Customized ShadCN UI / Saleor Style)\nDeploy: Vercel Production"]
-        ADMIN["🛠️ Unified Admin Dashboard\n(Customized ShadCN Admin + Tích hợp PayloadCMS)\nDeploy: Vercel Production"]
+    subgraph ClientLayer ["1. TẦNG CLIENT & GIAO DIỆN NGƯỜI DÙNG (VERCEL DEPLOYMENT)"]
+        SF["🛒 Next.js Storefront\n(Customized theo ShadCN UI / Saleor Style)\n- Danh mục & Giỏ hàng\n- Chi tiết sản phẩm\n- Cẩm nang nuôi mèo (ISR 15s)"]
+        
+        subgraph AdminApp ["🛠️ Unified Admin Dashboard (Next.js + ShadCN UI)"]
+            DASH_LAYOUT["Navigation & Layout (ShadCN Sidebar)"]
+            MEDUSA_VIEW["📦 Quản lý E-Commerce (MedusaJS API Client)\n- Sản phẩm hạt & pate\n- Đơn hàng & Khách hàng\n- Kho hàng & Doanh thu"]
+            IFRAME_CONTAINER["🖼️ TÍCH HỢP PAYLOADCMS (iFRAME CONTAINER)\n<iframe src='https://meocung-payload.vercel.app/admin' />\n- Soạn thảo cẩm nang (Datetime Picker, Auto-slug)\n- Banners, Coupons, Media Library, Globals"]
+        end
     end
 
-    subgraph APILayer ["2. TẦNG DỊCH VỤ HEADLESS & API GATEWAY"]
-        subgraph PayloadService ["PayloadCMS 3.0 (Headless CMS Engine)"]
-            CMS_AUTH["Auth & Users Module"]
-            CMS_POSTS["Cẩm nang nuôi mèo (Datetime Picker, Auto-slug)"]
-            CMS_BANNERS["Banners & Sliders Khuyến mãi"]
-            CMS_COUPONS["Mã giảm giá & Voucher"]
-            CMS_GLOBALS["Site Settings (Header, Footer, Hotline)"]
-            CMS_REST["REST & GraphQL API Endpoints"]
+    subgraph ServiceLayer ["2. TẦNG DỊCH VỤ HEADLESS & API BACKEND"]
+        subgraph PayloadBackend ["PayloadCMS 3.0 Service (Vercel)"]
+            CMS_CORE["Payload Core Engine"]
+            CMS_REST["REST & GraphQL Endpoints\n(/api/posts, /api/banners, /api/globals)"]
         end
 
-        subgraph MedusaService ["MedusaJS v2 Core (E-Commerce Backend)"]
-            MED_CART["Cart & Checkout Workflow"]
-            MED_ORDER["Order Management Engine"]
-            MED_PROD["Product Catalog & Variants"]
-            MED_PRICE["Pricing & Multi-currency"]
-            MED_AUTH["RBAC & API Keys"]
+        subgraph MedusaBackend ["MedusaJS v2 Core Service (Render Node.js Daemon)"]
+            MED_CORE["Medusa Core Framework"]
+            MED_REST["Store & Admin REST API Endpoints\n(/store/products, /store/carts, /admin/*)"]
         end
     end
 
@@ -38,106 +36,111 @@ flowchart TB
         NEON_DB[("🐘 Neon Serverless PostgreSQL\n(Shared High-Performance Cloud Database)")]
     end
 
-    %% Client Interactions
-    SF -- "Kéo bài viết cẩm nang, banners (ISR 15s)" --> CMS_REST
-    SF -- "Tra cứu sản phẩm, giỏ hàng, đặt hàng" --> MedusaService
-    ADMIN -- "Quản trị nội dung cẩm nang, SEO, banner, voucher" --> CMS_REST
-    ADMIN -- "Đồng bộ catalog sản phẩm, xem đơn hàng" --> MedusaService
+    %% Tương tác luồng dữ liệu
+    SF -- "Fetch bài viết cẩm nang, banners (ISR 15s)" --> CMS_REST
+    SF -- "Truy vấn catalog, tạo giỏ hàng, checkout" --> MED_REST
 
-    %% Service to DB Connections
-    PayloadService -- "Drizzle / Postgres Adapter (SSL Pooler)" --> NEON_DB
-    MedusaService -- "MikroORM / Pg Connection Pool" --> NEON_DB
+    DASH_LAYOUT -.-> MEDUSA_VIEW
+    DASH_LAYOUT -.-> IFRAME_CONTAINER
+    IFRAME_CONTAINER == "Nhúng toàn vẹn giao diện Payload Admin" ==> CMS_CORE
+    MEDUSA_VIEW -- "REST API: quản lý catalog & đơn hàng" --> MED_REST
+
+    %% Kết nối Database
+    PayloadBackend -- "Drizzle / Postgres Adapter (SSL)" --> NEON_DB
+    MedusaBackend -- "MikroORM / PG Pooler" --> NEON_DB
 ```
 
 ---
 
-## 2. Chi tiết các Phân hệ Kiến trúc
+## 2. Chi tiết Từng Thành phần Theo Định Hướng Của Mentor
 
-### A. Storefront Next.js (Customized ShadCN / Saleor Style)
-- **Công nghệ:** Next.js 15 (App Router), Tailwind CSS, Lucide Icons, ShadCN UI Components.
-- **Phong cách thiết kế:** Tối giản, hiện đại theo chuẩn Saleor Storefront, gam màu cam ấm chủ đạo của thương hiệu Mèo Cưng.
-- **Nhiệm vụ:**
-  - **Trang chủ (`/`):** Hero Banner khuyến mãi (kéo từ PayloadCMS), danh mục sản phẩm nổi bật, bài viết cẩm nang mới nhất.
-  - **Danh mục & Chi tiết sản phẩm (`/products`, `/products/[id]`):** Tích hợp giỏ hàng và danh mục hạt, pate, cát vệ sinh.
-  - **Trang Cẩm Nang Tin Tức (`/tin-tuc`, `/posts/[slug]`):** Tích hợp cơ chế **ISR (Incremental Static Regeneration)** cập nhật sau mỗi 15 giây khi có bài viết mới từ PayloadCMS.
-  - **Nút điều hướng quản trị (`Header`):** Dẫn thẳng vào Unified Admin có kiểm tra quyền đăng nhập.
-
----
-
-### B. Admin Dashboard (Customized theo ShadCN + Tích hợp PayloadCMS)
-- **Kiến trúc tích hợp:** Tận dụng thế mạnh của **PayloadCMS 3.0** (chạy native trên Next.js App Router) kết hợp thiết kế Dark Mode tối giản theo phong cách **ShadCN UI**.
-- **Tính năng quản trị tập trung:**
-  1. **Quản lý Tài khoản (Users):** Phân quyền Super Admin, Editor, Customer với chuẩn mã hóa PBKDF2 bảo mật.
-  2. **Cẩm nang nuôi mèo (`posts`):**
-     - Quản lý hơn 100 bài viết cẩm nang chuẩn SEO.
-     - Bộ chọn ngày giờ xuất bản (**Datetime Picker**) chính xác.
-     - Tự động sinh đường dẫn tĩnh (**Auto Slug hook**) thân thiện từ tiêu đề bài viết.
-  3. **Quản lý Bán hàng:**
-     - Danh mục **Sản phẩm hạt & pate (`products`)**.
-     - Danh mục **Đơn hàng (`orders`)**: Theo dõi trạng thái *Chờ xác nhận, Đang giao, Hoàn thành*.
-     - Danh mục **Voucher & Khuyến mãi (`coupons`)**: Quản lý mã giảm giá, hạn sử dụng.
-     - Danh mục **Đánh giá (`reviews`)**: Kiểm duyệt số sao và phản hồi của khách hàng.
-  4. **Cấu hình toàn trang (Globals Site Settings):** Cài đặt Hotline, Tên shop, Địa chỉ hiển thị thống nhất trên toàn hệ thống.
+### 1. Storefront Next.js (Customized ShadCN / Saleor Style)
+- **Công nghệ:** Next.js 15 (App Router), Tailwind CSS, Lucide Icons, ShadCN UI.
+- **Phong cách:** Lấy cảm hứng từ Saleor Storefront hiện đại, gam màu cam ấm của shop Mèo Cưng.
+- **Tính năng:**
+  - Trang chủ giới thiệu sản phẩm hạt, pate, cát vệ sinh và bài viết nổi bật.
+  - Trang `/tin-tuc` và `/posts/[slug]` đồng bộ tự động với PayloadCMS qua ISR (Incremental Static Regeneration sau 15 giây).
+  - Tích hợp giỏ hàng và đặt hàng kết nối trực tiếp Medusa Core API.
 
 ---
 
-### C. MedusaJS v2 API (Core E-Commerce Engine)
+### 2. Unified Admin Dashboard (Next.js + ShadCN UI)
+- **Công nghệ:** Next.js (Deploy lên Vercel), giao diện xây dựng hoàn toàn bằng **ShadCN UI** (Sidebar, Table, Dialog, Badge, Tabs...).
+- **Cơ chế tích hợp iFrame (Theo định hướng Mentor):**
+  - Tạo một tab/menu riêng mang tên **"Quản trị Nội dung (PayloadCMS)"**.
+  - Nhúng trực tiếp giao diện quản trị đầy đủ của Payload qua thẻ:
+    ```tsx
+    <iframe 
+      src="https://meocung-payload.vercel.app/admin" 
+      className="w-full h-[calc(100vh-64px)] border-0 rounded-xl"
+      title="PayloadCMS Admin"
+    />
+    ```
+  - **Lợi ích kiến trúc:**
+    - Không làm phình to gói bundle của Admin Dashboard.
+    - Giữ nguyên 100% sức mạnh gốc của PayloadCMS (Rich Text Lexical, Datetime Picker, Auto Slug, Banners, Media).
+    - Quản trị viên chỉ cần mở **1 trang Dashboard duy nhất** để vừa xem doanh thu/sản phẩm Medusa, vừa chuyển tab soạn thảo bài viết cẩm nang PayloadCMS.
+
+---
+
+### 3. PayloadCMS 3.0 (Headless CMS Engine)
+- **Môi trường:** Deploy độc lập trên Vercel.
+- **Chức năng:**
+  - Chuyên trách quản lý bài viết cẩm nang chăm sóc mèo (100+ bài mẫu).
+  - Tự động sinh đường dẫn tĩnh (`slug`) từ tiêu đề.
+  - Quản lý Banner khuyến mãi, Mã giảm giá (Coupons) và Cấu hình toàn trang (Site Settings).
+  - Expose REST API chuẩn cho Storefront và Admin Dashboard tiêu thụ.
+
+---
+
+### 4. MedusaJS v2 Core (E-Commerce Backend)
 - **Công nghệ:** MedusaJS v2 Framework (Node.js 20).
-- **Môi trường triển khai:** Render Web Service (Containerized Node.js 24/7 daemon).
-- **Trách nhiệm hệ thống:**
-  - Xử lý nghiệp vụ lõi về thương mại điện tử (Core Workflows).
-  - Quản lý phiên giỏ hàng (Cart Session), định giá (Price Sets), địa chỉ giao hàng và quy trình đặt hàng.
-  - Cung cấp Store API và Admin API được bảo vệ qua JWT và API Key.
+- **Môi trường:** Render Web Service (Chạy dạng Headless Core API daemon).
+- **Chức năng:**
+  - Trái tim thương mại điện tử: Xử lý quy trình giỏ hàng (Cart), Đơn hàng (Order), Khách hàng (Customer), Quản lý giá (Price Sets) và Phân quyền API.
 
 ---
 
-### D. Cơ sở dữ liệu Neon PostgreSQL Cloud
-- **Cơ chế:** Database đám mây phi máy chủ (Serverless PostgreSQL) hỗ trợ tự động co giãn và kết nối an toàn SSL.
-- **Chia sẻ dữ liệu:**
-  - Lưu trữ các bảng CMS của Payload: `users`, `posts`, `products`, `banners`, `coupons`, `orders`, `reviews`, `site_settings`...
-  - Lưu trữ lược đồ E-commerce của Medusa: `cart`, `order`, `product_variant`, `payment`...
+### 5. Cơ sở dữ liệu Neon Serverless PostgreSQL
+- Cơ sở dữ liệu đám mây PostgreSQL tập trung, kết nối qua SSL Pooler tốc độ cao.
+- Phân tách rõ ràng giữa các bảng nghiệp vụ bán hàng của Medusa và các bảng nội dung của PayloadCMS.
 
 ---
 
-## 3. Luồng dữ liệu hoạt động (Data Flow Sequence)
+## 3. Sơ đồ Tương tác Dữ liệu & Nhúng iFrame
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Admin as 👨‍💼 Quản Trị Viên (Admin)
-    actor Customer as 🐱 Khách Hàng (User)
-    participant AdminUI as 🛠️ Admin Dashboard (Payload / ShadCN)
-    participant SF as 🛒 Next.js Storefront
-    participant Medusa as ⚙️ MedusaJS Core API
-    participant NeonDB as 🐘 Neon PostgreSQL
+    participant Dash as 🛠️ Next.js Admin (ShadCN)
+    participant Frame as 🖼️ iFrame PayloadCMS
+    participant Medusa as ⚙️ MedusaJS API (Render)
+    participant Neon as 🐘 Neon PostgreSQL
 
-    %% Luồng đăng bài cẩm nang
-    Admin->>AdminUI: Soạn bài viết cẩm nang (Tiêu đề, Datetime Picker)
-    AdminUI->>AdminUI: Hook tự sinh Slug URL từ Tiêu đề
-    AdminUI->>NeonDB: Lưu bài viết vào bảng posts (Status: Published)
-    NeonDB-->>AdminUI: Xác nhận lưu thành công
-    
-    %% Luồng đồng bộ sang Storefront
-    Customer->>SF: Truy cập /tin-tuc hoặc Trang chủ
-    SF->>NeonDB: Fetch dữ liệu bài viết mới qua Payload API (ISR 15s)
-    NeonDB-->>SF: Trả về danh sách bài viết & Banners
-    SF-->>Customer: Hiển thị bài viết mới ngay lập tức
+    %% Phân hệ Medusa
+    Admin->>Dash: Mở mục "Sản phẩm & Đơn hàng" (ShadCN UI)
+    Dash->>Medusa: GET /admin/products, GET /admin/orders
+    Medusa->>Neon: Query bảng E-commerce
+    Neon-->>Medusa: Trả về danh sách đơn hàng & sản phẩm
+    Medusa-->>Dash: Render dữ liệu trên ShadCN Table
 
-    %% Luồng đặt hàng E-commerce
-    Customer->>SF: Thêm thức ăn hạt vào giỏ & Đặt hàng
-    SF->>Medusa: Gửi yêu cầu Create Cart & Checkout Order
-    Medusa->>NeonDB: Lưu giao dịch, trừ kho & tạo Order
-    Medusa-->>SF: Xác nhận đơn hàng thành công
-    Medusa-->>AdminUI: Đồng bộ thông tin đơn hàng sang Dashboard quản trị
+    %% Phân hệ Payload qua iFrame
+    Admin->>Dash: Chuyển sang tab "Cẩm nang & Banners"
+    Dash->>Frame: Tải iFrame https://meocung-payload.vercel.app/admin
+    Admin->>Frame: Soạn cẩm nang (chọn ngày giờ Datetime, nhập tiêu đề)
+    Frame->>Neon: Lưu vào bảng posts (tự động hook sinh slug)
+    Neon-->>Frame: Xuất bản bài viết thành công
 ```
 
 ---
 
-## 4. Bảng phân phối Hạ tầng & Deployment
+## 4. Bảng Tổng Hợp Triển Khai Hạ Tầng
 
-| Thành phần | Công nghệ | Nền tảng Cloud | Địa chỉ Deployment |
+| Thành phần | Công nghệ triển khai | Nền tảng Cloud | Địa chỉ URL |
 | :--- | :--- | :--- | :--- |
-| **Storefront** | Next.js 15, Tailwind, ShadCN | **Vercel** | `https://meocung-ecommerce-seven.vercel.app` |
-| **Admin Dashboard & CMS** | PayloadCMS 3.0, ShadCN Dark Theme | **Vercel** | `https://meocung-payload.vercel.app/admin` |
-| **E-Commerce API Core** | MedusaJS v2 Framework | **Render** | `https://meocung-medusa.onrender.com` |
-| **Cơ sở dữ liệu tập trung**| PostgreSQL Serverless (Pooler) | **Neon Cloud** | `ep-hidden-morning-bigw8w9g...neon.tech` |
+| **Storefront** | Next.js 15, ShadCN, Saleor Style | **Vercel** | `https://meocung-ecommerce-seven.vercel.app` |
+| **Admin Dashboard** | Next.js, ShadCN UI (Tích hợp iFrame) | **Vercel** | `https://meocung-ecommerce-seven.vercel.app/admin` |
+| **PayloadCMS Engine**| PayloadCMS 3.0, PostgreSQL Adapter | **Vercel** | `https://meocung-payload.vercel.app/admin` |
+| **Medusa E-Commerce** | MedusaJS v2 Core API | **Render** | `https://meocung-medusa.onrender.com` |
+| **Cơ sở dữ liệu** | Serverless PostgreSQL | **Neon Cloud**| `ep-hidden-morning-bigw8w9g...neon.tech` |
