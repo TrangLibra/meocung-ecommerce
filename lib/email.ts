@@ -1,3 +1,5 @@
+import nodemailer from 'nodemailer';
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -20,9 +22,56 @@ export interface SendEmailResult {
   error?: string;
 }
 
+export async function sendEmailWithGmailSMTP(
+  input: SendEmailInput
+): Promise<SendEmailResult> {
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
+  const fromName = process.env.GMAIL_FROM_NAME || process.env.SENDGRID_FROM_NAME || 'Mèo Cưng';
+
+  if (!gmailUser || !gmailPass) {
+    return {
+      ok: false,
+      skipped: true,
+      error: 'Chưa cấu hình GMAIL_USER hoặc GMAIL_APP_PASSWORD.',
+    };
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: gmailUser,
+        pass: gmailPass.replace(/\s+/g, ''),
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"${fromName}" <${gmailUser}>`,
+      to: input.to,
+      subject: input.subject,
+      text: input.text,
+      html: input.html,
+    });
+
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Lỗi không xác định';
+    console.error('[Gmail SMTP] Gửi email thất bại:', message);
+    return { ok: false, error: message };
+  }
+}
+
 export async function sendEmailWithSendGrid(
   input: SendEmailInput
 ): Promise<SendEmailResult> {
+  // Ưu tiên gửi trực tiếp qua Gmail SMTP (vào thẳng Inbox, không bị vào Spam)
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    return sendEmailWithGmailSMTP(input);
+  }
+
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
   const fromName = process.env.SENDGRID_FROM_NAME || 'Mèo Cưng';
