@@ -1,3 +1,12 @@
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export interface SendEmailInput {
   to: string;
   subject: string;
@@ -77,7 +86,7 @@ export async function sendVerificationCodeEmail(input: {
         <div style="display: inline-block; background: #ff7f5c; color: #fff; font-size: 28px; width: 56px; height: 56px; line-height: 56px; border-radius: 14px;">🐱</div>
         <h2 style="color: #ff7f5c; margin: 12px 0 4px;">Xác thực tài khoản Mèo Cưng</h2>
       </div>
-      <p style="color: #333; font-size: 15px;">Xin chào <strong>${input.name}</strong>,</p>
+      <p style="color: #333; font-size: 15px;">Xin chào <strong>${escapeHtml(input.name)}</strong>,</p>
       <p style="color: #555; font-size: 14px; line-height: 1.6;">
         Vui lòng nhập mã xác thực 6 chữ số bên dưới để hoàn tất đăng ký tài khoản tại <strong>Mèo Cưng</strong>:
       </p>
@@ -137,7 +146,7 @@ export async function sendOrderConfirmationEmail(input: {
       (item) => `
       <tr>
         <td style="padding: 10px 0; border-bottom: 1px solid #f1f1f1; color: #333; font-size: 13px;">
-          ${item.name} <span style="color: #888;">× ${item.quantity}</span>
+          ${escapeHtml(item.name)} <span style="color: #888;">× ${item.quantity}</span>
         </td>
         <td style="padding: 10px 0; border-bottom: 1px solid #f1f1f1; color: #333; font-size: 13px; text-align: right; font-weight: 600;">
           ${(item.price * item.quantity).toLocaleString('vi-VN')}₫
@@ -154,7 +163,7 @@ export async function sendOrderConfirmationEmail(input: {
         <p style="color: #666; font-size: 13px; margin: 0;">Mã đơn hàng: <strong style="color: #111;">#${input.orderCode}</strong></p>
       </div>
 
-      <p style="color: #333; font-size: 14px;">Xin chào <strong>${input.name}</strong>,</p>
+      <p style="color: #333; font-size: 14px;">Xin chào <strong>${escapeHtml(input.name)}</strong>,</p>
       <p style="color: #555; font-size: 14px; line-height: 1.6;">
         Cảm ơn bạn đã đặt hàng tại <strong>Mèo Cưng</strong>! Đơn hàng của bạn đã được ghi nhận và sẽ được giao hỏa tốc trong 2H tại TP.HCM.
       </p>
@@ -181,10 +190,10 @@ export async function sendOrderConfirmationEmail(input: {
       </div>
 
       <div style="background: #f9fafb; border-radius: 12px; padding: 14px; font-size: 13px; color: #444; line-height: 1.6;">
-        <div><strong>Người nhận:</strong> ${input.name}</div>
-        <div><strong>Số điện thoại:</strong> ${input.phone}</div>
-        <div><strong>Địa chỉ:</strong> ${input.address}</div>
-        ${input.note ? `<div><strong>Ghi chú:</strong> ${input.note}</div>` : ''}
+        <div><strong>Người nhận:</strong> ${escapeHtml(input.name)}</div>
+        <div><strong>Số điện thoại:</strong> ${escapeHtml(input.phone)}</div>
+        <div><strong>Địa chỉ:</strong> ${escapeHtml(input.address)}</div>
+        ${input.note ? `<div><strong>Ghi chú:</strong> ${escapeHtml(input.note)}</div>` : ''}
       </div>
 
       <p style="color: #888; font-size: 12px; margin-top: 24px; border-top: 1px solid #eee; padding-top: 12px; text-align: center;">
@@ -210,7 +219,7 @@ export async function sendWelcomeEmail(user: { name: string; email: string }) {
         <div style="display: inline-block; background: #ff7f5c; color: #fff; font-size: 28px; width: 56px; height: 56px; line-height: 56px; border-radius: 14px;">🐱</div>
         <h2 style="color: #ff7f5c; margin: 12px 0 4px;">Chào mừng đến với Mèo Cưng!</h2>
       </div>
-      <p style="color: #333; font-size: 15px;">Xin chào <strong>${user.name}</strong>,</p>
+      <p style="color: #333; font-size: 15px;">Xin chào <strong>${escapeHtml(user.name)}</strong>,</p>
       <p style="color: #555; font-size: 14px; line-height: 1.6;">
         Cảm ơn bạn đã đăng ký tài khoản thành viên tại <strong>Mèo Cưng</strong>.
         Từ giờ bạn có thể dễ dàng đặt mua thức ăn hạt, pate, cát vệ sinh và theo dõi ưu đãi dành riêng cho hoàng thượng.

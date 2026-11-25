@@ -33,7 +33,7 @@ export default function CartPage() {
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !phone || !address || !email) {
+    if (!name.trim() || !phone.trim() || !address.trim() || !email.trim()) {
       alert('Vui lòng điền đầy đủ họ tên, Gmail, số điện thoại và địa chỉ nhận hàng!');
       return;
     }

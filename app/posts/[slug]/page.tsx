@@ -148,7 +148,7 @@ export default async function PostDetailPage({ params }: Props) {
 
             <div className="space-y-3">
               {relatedPosts.map((related) => {
-                const img = related.image ? getDirectusImageUrl(related.image, 200, 75) : null;
+                const img = related.image || null;
                 return (
                   <Link
                     key={related.id}

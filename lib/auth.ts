@@ -40,6 +40,8 @@ export interface PendingRegistration {
   passwordHash: string;
   code: string;
   expiresAt: number;
+  attempts?: number;
+  lastSentAt?: number;
 }
 
 const globalForAuth = globalThis as unknown as {
@@ -181,6 +183,8 @@ export function savePendingRegistration(input: {
     passwordHash: hashPassword(input.password),
     code: generateVerificationCode(),
     expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+    attempts: 0,
+    lastSentAt: Date.now(),
   };
 
   pendingList.push(record);
@@ -197,6 +201,24 @@ export function getPendingRegistration(
   );
 }
 
+export function verifyPendingCode(expected: string, actual: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(actual);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+export function incrementPendingAttempts(email: string): number {
+  const normalizedEmail = email.trim().toLowerCase();
+  const list = readPendingFromDisk();
+  const idx = list.findIndex((p) => p.email.toLowerCase() === normalizedEmail);
+  if (idx === -1) return 0;
+  const nextAttempts = (list[idx].attempts || 0) + 1;
+  list[idx] = { ...list[idx], attempts: nextAttempts };
+  writePendingToDisk(list);
+  return nextAttempts;
+}
+
 export function refreshPendingCode(email: string): PendingRegistration | null {
   const normalizedEmail = email.trim().toLowerCase();
   const list = readPendingFromDisk();
@@ -207,6 +229,8 @@ export function refreshPendingCode(email: string): PendingRegistration | null {
     ...list[idx],
     code: generateVerificationCode(),
     expiresAt: Date.now() + 10 * 60 * 1000,
+    attempts: 0,
+    lastSentAt: Date.now(),
   };
   writePendingToDisk(list);
   return list[idx];

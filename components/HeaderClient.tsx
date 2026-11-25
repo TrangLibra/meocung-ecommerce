@@ -137,7 +137,7 @@ export default function HeaderClient() {
                   className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-orange-200 bg-orange-50/70 hover:bg-orange-100/80 transition cursor-pointer"
                 >
                   <div className="w-7 h-7 rounded-full bg-[#ff7f5c] text-white font-bold text-xs flex items-center justify-center uppercase">
-                    {user.name.charAt(0)}
+                    {user.name?.trim().charAt(0) || 'U'}
                   </div>
                   <span className="hidden md:inline text-xs font-bold text-gray-800 max-w-[110px] truncate">
                     {user.name}
