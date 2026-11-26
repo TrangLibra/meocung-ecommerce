@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  findUserByEmail,
+  findUserByEmailAsync,
   setSessionCookie,
   toPublicUser,
   verifyPassword,
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = findUserByEmail(email);
+    const user = await findUserByEmailAsync(email);
     if (!user || !verifyPassword(password, user.passwordHash)) {
       return NextResponse.json(
         { error: 'Email hoặc mật khẩu không chính xác.' },

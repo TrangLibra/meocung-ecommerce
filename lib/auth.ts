@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { cookies } from 'next/headers';
+import { ensureStoreTables } from './db';
+import { MEDUSA_BACKEND_URL, MEDUSA_PUBLISHABLE_KEY } from './medusa';
 
 export interface StoredUser {
   id: string;
@@ -262,6 +264,80 @@ export function createUserFromPending(pending: PendingRegistration): StoredUser 
   return newUser;
 }
 
+export async function findUserByEmailAsync(
+  email: string
+): Promise<StoredUser | undefined> {
+  const normalized = email.trim().toLowerCase();
+  try {
+    const pool = await ensureStoreTables();
+    if (pool) {
+      const res = await pool.query(
+        `SELECT id, first_name, last_name, email, phone, metadata, created_at
+         FROM customer
+         WHERE LOWER(email) = $1 AND deleted_at IS NULL
+         LIMIT 1`,
+        [normalized]
+      );
+      if (res.rows.length > 0) {
+        const row = res.rows[0];
+        const passwordHash =
+          row.metadata && typeof row.metadata.passwordHash === 'string'
+            ? row.metadata.passwordHash
+            : '';
+        const fullName = [row.first_name, row.last_name].filter(Boolean).join(' ').trim() || row.email;
+        return {
+          id: row.id,
+          name: fullName,
+          email: row.email,
+          phone: row.phone || undefined,
+          passwordHash,
+          createdAt: new Date(row.created_at).toISOString(),
+        };
+      }
+      return undefined;
+    }
+  } catch (err) {
+    console.error('[Neon DB] findUserByEmailAsync fallback:', err);
+  }
+  return findUserByEmail(normalized);
+}
+
+export async function createUserFromPendingAsync(
+  pending: PendingRegistration
+): Promise<StoredUser> {
+  const newUser: StoredUser = {
+    id: `cus_${crypto.randomUUID().replace(/-/g, '')}`,
+    name: pending.name,
+    email: pending.email.trim().toLowerCase(),
+    phone: pending.phone || undefined,
+    passwordHash: pending.passwordHash,
+    createdAt: new Date().toISOString(),
+  };
+
+  try {
+    const pool = await ensureStoreTables();
+    if (pool) {
+      await pool.query(
+        `INSERT INTO customer (id, first_name, email, phone, has_account, metadata, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, true, $5::jsonb, NOW(), NOW())`,
+        [
+          newUser.id,
+          newUser.name,
+          newUser.email,
+          newUser.phone || null,
+          JSON.stringify({ passwordHash: newUser.passwordHash }),
+        ]
+      );
+      deletePendingRegistration(pending.email);
+      return newUser;
+    }
+  } catch (err) {
+    console.error('[Neon DB] createUserFromPendingAsync fallback:', err);
+  }
+
+  return createUserFromPending(pending);
+}
+
 interface SessionPayload {
   userId: string;
   email: string;
@@ -397,4 +473,113 @@ export function getSessionUser(): PublicUser | null {
   const token = cookies().get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
   return verifySessionToken(token);
+}
+
+// ============================================================================
+// Medusa Backend Storefront User Sync (Primary Storage)
+// ============================================================================
+
+function getMedusaHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'x-publishable-api-key': MEDUSA_PUBLISHABLE_KEY,
+  };
+}
+
+function mapMedusaUser(u: any): PublicUser {
+  return {
+    id: String(u.id),
+    name: String(u.name || ''),
+    email: String(u.email || ''),
+    phone: u.phone ? String(u.phone) : undefined,
+    createdAt: u.created_at ? String(u.created_at) : new Date().toISOString(),
+  };
+}
+
+export async function checkEmailExistsInMedusa(email: string): Promise<boolean | null> {
+  try {
+    const url = `${MEDUSA_BACKEND_URL}/store/storefront-users/check-email?email=${encodeURIComponent(
+      email.trim().toLowerCase()
+    )}`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: getMedusaHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Boolean(data?.exists);
+  } catch {
+    return null;
+  }
+}
+
+export async function registerUserInMedusa(input: {
+  name: string;
+  email: string;
+  phone?: string;
+  password?: string;
+  passwordHash?: string;
+}): Promise<{ ok: true; user: PublicUser } | { ok: false; status: number; error: string; networkError?: boolean }> {
+  try {
+    const res = await fetch(`${MEDUSA_BACKEND_URL}/store/storefront-users/register`, {
+      method: 'POST',
+      headers: getMedusaHeaders(),
+      cache: 'no-store',
+      body: JSON.stringify({
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        password: input.password,
+        password_hash: input.passwordHash,
+        source: 'meocung-ecommerce',
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        error: data?.error || 'Không thể lưu tài khoản lên Medusa.',
+      };
+    }
+    return { ok: true, user: mapMedusaUser(data.user) };
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+      error: 'Không thể kết nối tới Medusa Backend.',
+      networkError: true,
+    };
+  }
+}
+
+export async function loginUserInMedusa(
+  email: string,
+  password: string
+): Promise<{ ok: true; user: PublicUser } | { ok: false; status: number; error: string; networkError?: boolean }> {
+  try {
+    const res = await fetch(`${MEDUSA_BACKEND_URL}/store/storefront-users/login`, {
+      method: 'POST',
+      headers: getMedusaHeaders(),
+      cache: 'no-store',
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        error: data?.error || 'Email hoặc mật khẩu không chính xác.',
+      };
+    }
+    return { ok: true, user: mapMedusaUser(data.user) };
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+      error: 'Không thể kết nối tới Medusa Backend.',
+      networkError: true,
+    };
+  }
 }
