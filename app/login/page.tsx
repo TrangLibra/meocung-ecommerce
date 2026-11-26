@@ -16,11 +16,23 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const [redirectTo, setRedirectTo] = useState('/');
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('redirect');
+      if (next && next.startsWith('/') && !next.startsWith('//')) {
+        setRedirectTo(next);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (user) {
-      router.replace('/');
+      router.replace(redirectTo);
     }
-  }, [user, router]);
+  }, [user, router, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +47,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push('/');
+    router.push(redirectTo);
     router.refresh();
   };
 

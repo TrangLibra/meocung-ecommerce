@@ -69,7 +69,7 @@ export default async function PostDetailPage({ params }: Props) {
       <nav className="flex items-center gap-2 text-xs text-gray-500">
         <Link href="/" className="hover:text-[#ff7f5c] transition">Trang chủ</Link>
         <span>/</span>
-        <Link href="/#cam-nang" className="hover:text-[#ff7f5c] transition">Cẩm nang nuôi mèo</Link>
+        <Link href="/tin-tuc" className="hover:text-[#ff7f5c] transition">Cẩm nang nuôi mèo</Link>
         <span>/</span>
         <span className="text-gray-800 font-semibold truncate max-w-xs">{post.title}</span>
       </nav>

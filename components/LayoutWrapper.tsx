@@ -1,13 +1,24 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import HeaderClient from '@/components/HeaderClient';
-import { Sparkles, MapPin, Phone, Heart } from 'lucide-react';
+import ChatbotWidget from '@/components/ChatbotWidget';
+import { Sparkles, MapPin, Phone, CheckCircle2 } from 'lucide-react';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith('/admin');
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleNewsletterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsletterEmail.trim()) return;
+    setSubscribed(true);
+    setNewsletterEmail('');
+  };
 
   if (isAdmin) {
     return <div className="w-full min-h-screen bg-[#0F172A]">{children}</div>;
@@ -67,10 +78,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           <div>
             <h4 className="font-bold text-gray-900 mb-3 text-sm">Chính Sách & Hỗ Trợ</h4>
             <ul className="space-y-2 text-xs">
-              <li><a href="#" className="hover:text-[#ff7f5c] transition-colors">Chính sách giao hàng 2H</a></li>
-              <li><a href="#" className="hover:text-[#ff7f5c] transition-colors">Chính sách đổi trả trong 7 ngày</a></li>
-              <li><a href="#" className="hover:text-[#ff7f5c] transition-colors">Hướng dẫn mua hàng & thanh toán</a></li>
-              <li><a href="#" className="hover:text-[#ff7f5c] transition-colors">Cam kết sản phẩm chính hãng</a></li>
+              <li><Link href="/chinh-sach#giao-hang" className="hover:text-[#ff7f5c] transition-colors">Chính sách giao hàng 2H</Link></li>
+              <li><Link href="/chinh-sach#doi-tra" className="hover:text-[#ff7f5c] transition-colors">Chính sách đổi trả trong 7 ngày</Link></li>
+              <li><Link href="/chinh-sach#mua-hang" className="hover:text-[#ff7f5c] transition-colors">Hướng dẫn mua hàng & thanh toán</Link></li>
+              <li><Link href="/chinh-sach#chinh-hang" className="hover:text-[#ff7f5c] transition-colors">Cam kết sản phẩm chính hãng</Link></li>
             </ul>
           </div>
 
@@ -79,16 +90,29 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             <p className="text-xs text-gray-500 mb-3">
               Đăng ký nhận thông tin khuyến mãi và bí quyết chăm sóc hoàng thượng khỏe mạnh!
             </p>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                placeholder="Nhập email của bạn..."
-                className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs w-full focus:outline-none focus:border-[#ff7f5c]"
-              />
-              <button className="bg-[#ff7f5c] hover:bg-[#e06b49] text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors">
-                Gửi
-              </button>
-            </div>
+            {subscribed ? (
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>Đã đăng ký nhận ưu đãi thành công!</span>
+              </div>
+            ) : (
+              <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
+                <input
+                  type="email"
+                  required
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  placeholder="Nhập email của bạn..."
+                  className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs w-full focus:outline-none focus:border-[#ff7f5c]"
+                />
+                <button
+                  type="submit"
+                  className="bg-[#ff7f5c] hover:bg-[#e06b49] text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+                >
+                  Gửi
+                </button>
+              </form>
+            )}
           </div>
         </div>
 
@@ -96,6 +120,9 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           <p>© {new Date().getFullYear()} Mèo Cưng. Bản quyền thuộc về Mèo Cưng Storefront.</p>
         </div>
       </footer>
+
+      {/* AI Consultation Chatbot Widget */}
+      <ChatbotWidget />
     </>
   );
 }
