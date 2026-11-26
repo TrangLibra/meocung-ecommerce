@@ -1,0 +1,106 @@
+import { NextResponse } from 'next/server';
+import { getSessionUser } from '@/lib/auth';
+import { sendOrderConfirmationEmail, OrderEmailItem } from '@/lib/email';
+
+export async function POST(request: Request) {
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await request.json();
+    if (!parsed || typeof parsed !== 'object') {
+      return NextResponse.json({ error: 'Dữ liệu không hợp lệ.' }, { status: 400 });
+    }
+    body = parsed;
+  } catch {
+    return NextResponse.json({ error: 'JSON không hợp lệ.' }, { status: 400 });
+  }
+
+  const sessionUser = getSessionUser();
+
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const email =
+    (typeof body.email === 'string' ? body.email.trim().toLowerCase() : '') ||
+    sessionUser?.email ||
+    '';
+  const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
+  const address = typeof body.address === 'string' ? body.address.trim() : '';
+  const note = typeof body.note === 'string' ? body.note.trim() : '';
+  const rawItems = Array.isArray(body.items) ? body.items : [];
+
+  if (!name || !phone || !address) {
+    return NextResponse.json(
+      { error: 'Vui lòng điền đầy đủ họ tên, số điện thoại và địa chỉ nhận hàng.' },
+      { status: 400 }
+    );
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (email && !emailRegex.test(email)) {
+    return NextResponse.json(
+      { error: 'Địa chỉ email không hợp lệ.' },
+      { status: 400 }
+    );
+  }
+
+  const items: OrderEmailItem[] = [];
+  for (const item of rawItems) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    const itemName = typeof rec.name === 'string' ? rec.name.trim() : '';
+    const quantity = Number(rec.quantity);
+    const price = Number(rec.price);
+    if (
+      !itemName ||
+      !Number.isInteger(quantity) ||
+      quantity <= 0 ||
+      !Number.isFinite(price) ||
+      price < 0
+    ) {
+      return NextResponse.json(
+        { error: 'Danh sách sản phẩm trong đơn hàng không hợp lệ.' },
+        { status: 400 }
+      );
+    }
+    items.push({ name: itemName, quantity, price });
+  }
+
+  if (items.length === 0) {
+    return NextResponse.json(
+      { error: 'Giỏ hàng đang trống.' },
+      { status: 400 }
+    );
+  }
+
+  // Recompute totals server-side
+  const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const shippingFee = totalPrice >= 300000 ? 0 : 25000;
+  const grandTotal = totalPrice + shippingFee;
+
+  const orderCode = `MC${Date.now().toString().slice(-6)}`;
+
+  let emailSent = false;
+  if (email) {
+    const emailResult = await sendOrderConfirmationEmail({
+      orderCode,
+      name,
+      email,
+      phone,
+      address,
+      note,
+      items,
+      totalPrice,
+      shippingFee,
+      grandTotal,
+    });
+    emailSent = emailResult.ok;
+  }
+
+  return NextResponse.json(
+    {
+      ok: true,
+      orderCode,
+      email,
+      emailSent,
+    },
+    { status: 201 }
+  );
+}

@@ -1,30 +1,78 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
-import { Trash2, ArrowRight, ShieldCheck, CheckCircle2, Phone, ShoppingBag } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Trash2, ArrowRight, CheckCircle2, ShoppingBag, Mail } from 'lucide-react';
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice, totalItems } = useCart();
+  const { user } = useAuth();
 
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [ordered, setOrdered] = useState(false);
+  const [orderCode, setOrderCode] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setName((prev) => prev || user.name || '');
+      setEmail((prev) => prev || user.email || '');
+      setPhone((prev) => prev || user.phone || '');
+    }
+  }, [user]);
 
   const shippingFee = totalPrice >= 300000 || totalPrice === 0 ? 0 : 25000;
   const grandTotal = totalPrice + shippingFee;
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !phone || !address) {
-      alert('Vui lòng điền đầy đủ họ tên, số điện thoại và địa chỉ nhận hàng!');
+    if (!name.trim() || !phone.trim() || !address.trim() || !email.trim()) {
+      alert('Vui lòng điền đầy đủ họ tên, Gmail, số điện thoại và địa chỉ nhận hàng!');
       return;
     }
-    setOrdered(true);
-    clearCart();
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+          address,
+          note,
+          items: cart.map((item) => ({
+            name: item.product.name,
+            quantity: item.quantity,
+            price: item.product.price,
+          })),
+          totalPrice,
+          shippingFee,
+          grandTotal,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Không thể đặt hàng. Vui lòng thử lại.');
+        return;
+      }
+      setOrderCode(data.orderCode || '');
+      setEmailSent(Boolean(data.emailSent));
+      setOrdered(true);
+      clearCart();
+    } catch {
+      alert('Lỗi kết nối máy chủ. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (ordered) {
@@ -34,9 +82,22 @@ export default function CartPage() {
           <CheckCircle2 className="w-10 h-10" />
         </div>
         <h2 className="text-2xl font-black text-gray-900">Đặt Hàng Thành Công!</h2>
+        {orderCode && (
+          <p className="text-xs font-bold text-[#ff7f5c] bg-orange-50 inline-block px-4 py-1.5 rounded-full">
+            Mã đơn hàng: #{orderCode}
+          </p>
+        )}
         <p className="text-sm text-gray-600 leading-relaxed">
           Cảm ơn <strong>{name}</strong>! Đơn hàng của bạn đã được ghi nhận vào hệ thống Mèo Cưng. Nhân viên sẽ liên hệ số điện thoại <strong>{phone}</strong> để xác nhận và giao hàng hỏa tốc trong 2H!
         </p>
+        {emailSent && (
+          <div className="flex items-center justify-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5">
+            <Mail className="w-4 h-4 shrink-0" />
+            <span>
+              Đã gửi Gmail xác nhận đơn hàng đến <strong>{email}</strong>
+            </span>
+          </div>
+        )}
         <div className="pt-4 flex justify-center gap-3">
           <Link
             href="/products"
@@ -163,6 +224,18 @@ export default function CartPage() {
             </div>
 
             <div>
+              <label className="text-xs font-bold text-gray-700 block mb-1">Gmail nhận xác nhận đơn hàng *</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ban@gmail.com"
+                className="w-full text-xs p-2.5 rounded-xl border border-gray-200 outline-none focus:border-[#ff7f5c]"
+              />
+            </div>
+
+            <div>
               <label className="text-xs font-bold text-gray-700 block mb-1">Số điện thoại nhận hàng *</label>
               <input
                 type="tel"
@@ -215,9 +288,10 @@ export default function CartPage() {
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-full bg-[#ff7f5c] hover:bg-[#f0643d] text-white font-bold text-xs transition shadow-md shadow-orange-200 cursor-pointer flex items-center justify-center gap-2"
+              disabled={submitting}
+              className="w-full py-3.5 rounded-full bg-[#ff7f5c] hover:bg-[#f0643d] disabled:opacity-60 text-white font-bold text-xs transition shadow-md shadow-orange-200 cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Xác Nhận Đặt Hàng Hỏa Tốc (COD)</span>
+              <span>{submitting ? 'Đang gửi đơn hàng...' : 'Xác Nhận Đặt Hàng Hỏa Tốc (COD)'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>

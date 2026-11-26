@@ -50,7 +50,7 @@ export default async function HomePage() {
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <Link
-              href={activeBanner.buttonLink || '/products'}
+              href={activeBanner.buttonLink === '/san-pham' ? '/products' : activeBanner.buttonLink || '/products'}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-[#ff7f5c] font-bold text-sm hover:bg-orange-50 transition shadow-md"
             >
               <span>{activeBanner.buttonText || 'Mua sắm ngay'}</span>
@@ -174,7 +174,7 @@ export default async function HomePage() {
           </div>
 
           <Link
-            href="/posts"
+            href="/tin-tuc"
             className="inline-flex items-center gap-1 text-sm font-bold text-[#ff7f5c] hover:text-[#e06645] transition group"
           >
             <span>Xem thêm bài viết</span>

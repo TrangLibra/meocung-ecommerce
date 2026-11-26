@@ -1,15 +1,46 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
-import { Phone, Search, ShoppingCart, Menu, Sparkles, Truck, ChevronDown } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import {
+  Phone,
+  Search,
+  ShoppingCart,
+  Menu,
+  Sparkles,
+  Truck,
+  ChevronDown,
+  User,
+  LogOut,
+  LogIn,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function HeaderClient() {
   const { totalItems } = useCart();
+  const { user, loading: authLoading, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    await logout();
+    router.refresh();
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +126,69 @@ export default function HeaderClient() {
             </div>
             <span className="hidden lg:inline text-xs font-semibold">Giỏ hàng</span>
           </Link>
+
+          {/* Auth Controls */}
+          {!authLoading && (
+            user ? (
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-orange-200 bg-orange-50/70 hover:bg-orange-100/80 transition cursor-pointer"
+                >
+                  <div className="w-7 h-7 rounded-full bg-[#ff7f5c] text-white font-bold text-xs flex items-center justify-center uppercase">
+                    {user.name?.trim().charAt(0) || 'U'}
+                  </div>
+                  <span className="hidden md:inline text-xs font-bold text-gray-800 max-w-[110px] truncate">
+                    {user.name}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                </button>
+
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
+                    <div className="px-4 py-2.5 border-b border-gray-100">
+                      <p className="text-xs font-bold text-gray-900 truncate">{user.name}</p>
+                      <p className="text-[11px] text-gray-500 truncate">{user.email}</p>
+                    </div>
+                    <Link
+                      href="/cart"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-orange-50 hover:text-[#ff7f5c] transition"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      <span>Giỏ hàng của tôi ({totalItems})</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Đăng xuất</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-gray-200 hover:border-[#ff7f5c] hover:text-[#ff7f5c] text-gray-700 text-xs font-bold transition"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Đăng nhập</span>
+                </Link>
+                <Link
+                  href="/register"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#ff7f5c] hover:bg-[#f0643d] text-white text-xs font-bold transition shadow-sm"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Đăng ký</span>
+                </Link>
+              </div>
+            )
+          )}
         </div>
       </div>
 
