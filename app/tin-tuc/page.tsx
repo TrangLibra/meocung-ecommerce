@@ -1,12 +1,30 @@
 import React from 'react';
 import Link from 'next/link';
-import { getPayloadPosts } from '@/lib/payload';
+import { Pool } from 'pg';
 import { Calendar, ChevronRight, BookOpen, Sparkles } from 'lucide-react';
 
-export const revalidate = 15;
+export const dynamic = 'force-dynamic';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_X7DysxtaILK5@ep-hidden-morning-bigw8w9g-pooler.c-5.ap-southeast-1.aws.neon.tech/neondb?sslmode=require'
+});
+
+async function getLivePosts() {
+  try {
+    const res = await pool.query(
+      'SELECT id, title, slug, category, published_at as "publishedAt", summary, cover_image as "coverImage", status FROM posts ORDER BY id DESC LIMIT 150'
+    );
+    if (res.rows && res.rows.length > 0) {
+      return res.rows;
+    }
+  } catch (e) {
+    console.error('Error fetching live posts in tin-tuc page:', e);
+  }
+  return [];
+}
 
 export default async function NewsPage() {
-  const posts = await getPayloadPosts(100);
+  const posts = await getLivePosts();
 
   return (
     <div className="space-y-8">
@@ -26,17 +44,17 @@ export default async function NewsPage() {
 
       {/* Posts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {posts.map((post) => {
-          const formattedDate = post.date_created
-            ? new Date(post.date_created).toLocaleDateString('vi-VN', {
+        {posts.map((post: any) => {
+          const formattedDate = post.publishedAt || post.date_created
+            ? new Date(post.publishedAt || post.date_created).toLocaleDateString('vi-VN', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
               })
             : null;
 
-          const imageUrl = post.image || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&auto=format&fit=crop&q=80';
-          const metaDesc = post.seo?.meta_description || 'Xem hướng dẫn chi tiết chăm sóc mèo cưng...';
+          const imageUrl = post.coverImage || post.image || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&auto=format&fit=crop&q=80';
+          const metaDesc = post.summary || post.seo?.meta_description || 'Xem hướng dẫn chi tiết chăm sóc mèo cưng...';
 
           return (
             <article
