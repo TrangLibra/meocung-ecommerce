@@ -147,19 +147,19 @@ export default function CompleteUnifiedAdmin() {
     }
   };
 
-  // Load danh sách bài viết từ PayloadCMS qua Native REST API
+  // Load danh sách bài viết từ PayloadCMS qua Server API Route (không bị CORS)
   const loadPosts = async () => {
     setPostsLoading(true);
     try {
-      const res = await fetch('https://meocung-payload.vercel.app/api/posts?limit=100');
+      const res = await fetch('/api/admin/posts');
       if (res.ok) {
         const data = await res.json();
-        if (data.docs) {
+        if (data.docs && Array.isArray(data.docs)) {
           setPosts(data.docs);
         }
       }
     } catch (err) {
-      console.error('Lỗi khi fetch posts từ PayloadCMS:', err);
+      console.error('Lỗi khi fetch posts:', err);
     } finally {
       setPostsLoading(false);
     }
