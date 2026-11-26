@@ -1,3 +1,19 @@
+export interface Vendor {
+  id: string;
+  name: string;
+  slug: string;
+  logo?: string;
+  rating?: number;
+  location?: string;
+}
+
+export const VENDORS: Vendor[] = [
+  { id: 'v_meocung', name: 'Mèo Cưng Official Store', slug: 'meocung-official', logo: '🐾', rating: 5.0, location: 'TP.HCM' },
+  { id: 'v_royalcanin', name: 'Royal Canin Việt Nam', slug: 'royal-canin', logo: '🥣', rating: 4.9, location: 'Hà Nội' },
+  { id: 'v_ciao', name: 'Ciao Churu Pet Mall', slug: 'ciao-churu', logo: '🥫', rating: 5.0, location: 'TP.HCM' },
+  { id: 'v_petaccessories', name: 'Phụ Kiện Thú Cưng Sài Gòn', slug: 'pet-accessories', logo: '🧶', rating: 4.8, location: 'Đà Nẵng' },
+];
+
 export interface Product {
   id: string;
   name: string;
@@ -12,6 +28,8 @@ export interface Product {
   description: string;
   weight?: string;
   inStock: boolean;
+  vendorId?: string;
+  vendorName?: string;
 }
 
 export const CATEGORIES = [
@@ -28,6 +46,8 @@ export const PRODUCTS: Product[] = [
     slug: 'hat-dinh-duong',
     categorySlug: 'thuc-an-hat',
     categoryName: 'Thức ăn hạt',
+    vendorId: 'v_meocung',
+    vendorName: 'Mèo Cưng Official',
     price: 150000,
     originalPrice: 180000,
     image: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800',
@@ -43,6 +63,8 @@ export const PRODUCTS: Product[] = [
     slug: 'thuc-an-hat-royal-canin-fit-32',
     categorySlug: 'thuc-an-hat',
     categoryName: 'Thức ăn hạt',
+    vendorId: 'v_royalcanin',
+    vendorName: 'Royal Canin VN',
     price: 185000,
     originalPrice: 215000,
     image: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&auto=format&fit=crop&q=80',
