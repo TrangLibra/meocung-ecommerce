@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  findUserByEmail,
+  findUserByEmailAsync,
   savePendingRegistration,
   setPendingCookie,
 } from '@/lib/auth';
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (findUserByEmail(email)) {
+    if (await findUserByEmailAsync(email)) {
       return NextResponse.json(
         { error: 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.' },
         { status: 409 }
@@ -55,8 +55,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: emailResult.skipped
-            ? 'Hệ thống chưa cấu hình SendGrid (SENDGRID_API_KEY / SENDGRID_FROM_EMAIL) trong .env.local.'
-            : `Không thể gửi mã xác thực tới Gmail: ${emailResult.error}`,
+            ? 'Hệ thống chưa cấu hình email (GMAIL_USER / SENDGRID_API_KEY) trong biến môi trường.'
+            : 'Không thể gửi mã xác thực tới Gmail. Vui lòng thử lại sau.',
         },
         { status: 500 }
       );

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import {
   clearPendingCookie,
-  createUserFromPending,
+  createUserFromPendingAsync,
   deletePendingRegistration,
-  findUserByEmail,
+  findUserByEmailAsync,
   getPendingFromCookie,
   getPendingRegistration,
   incrementPendingAttempts,
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (findUserByEmail(email)) {
+  if (await findUserByEmailAsync(email)) {
     return NextResponse.json(
       { error: 'Tài khoản này đã được xác thực. Vui lòng đăng nhập.' },
       { status: 409 }
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const created = createUserFromPending(pending);
+  const created = await createUserFromPendingAsync(pending);
   clearPendingCookie();
   const publicUser = toPublicUser(created);
   setSessionCookie(publicUser);
