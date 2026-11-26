@@ -21,7 +21,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   };
 
   if (isAdmin) {
-    return <div className="w-full min-h-screen bg-[#0F172A]">{children}</div>;
+    return <div className="fixed inset-0 z-50 bg-slate-50 overflow-hidden">{children}</div>;
   }
 
   return (

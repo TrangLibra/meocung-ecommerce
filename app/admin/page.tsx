@@ -359,7 +359,7 @@ export default function CompleteUnifiedAdmin() {
   );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans -m-4 sm:-m-6 lg:-m-8">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans">
       {/* SIDEBAR TỔNG HỢP: SALEOR + MEDUSA + PAYLOADCMS */}
       <aside className="w-64 border-r border-slate-200 bg-white flex flex-col justify-between shrink-0 select-none shadow-sm z-20">
         <div className="overflow-y-auto">
