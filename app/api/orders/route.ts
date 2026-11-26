@@ -3,6 +3,14 @@ import { getSessionUser } from '@/lib/auth';
 import { sendOrderConfirmationEmail, OrderEmailItem } from '@/lib/email';
 
 export async function POST(request: Request) {
+  const sessionUser = getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json(
+      { error: 'Vui lòng đăng nhập để đặt hàng.' },
+      { status: 401 }
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     const parsed = await request.json();
@@ -14,13 +22,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'JSON không hợp lệ.' }, { status: 400 });
   }
 
-  const sessionUser = getSessionUser();
-
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const email =
     (typeof body.email === 'string' ? body.email.trim().toLowerCase() : '') ||
-    sessionUser?.email ||
-    '';
+    sessionUser.email;
   const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
   const address = typeof body.address === 'string' ? body.address.trim() : '';
   const note = typeof body.note === 'string' ? body.note.trim() : '';

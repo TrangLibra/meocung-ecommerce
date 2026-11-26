@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { Trash2, ArrowRight, CheckCircle2, ShoppingBag, Mail } from 'lucide-react';
+import { Trash2, ArrowRight, CheckCircle2, ShoppingBag, Mail, Lock, LogIn } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice, totalItems } = useCart();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -33,6 +35,10 @@ export default function CartPage() {
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      router.push('/login?redirect=/cart');
+      return;
+    }
     if (!name.trim() || !phone.trim() || !address.trim() || !email.trim()) {
       alert('Vui lòng điền đầy đủ họ tên, Gmail, số điện thoại và địa chỉ nhận hàng!');
       return;
@@ -286,14 +292,41 @@ export default function CartPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-3.5 rounded-full bg-[#ff7f5c] hover:bg-[#f0643d] disabled:opacity-60 text-white font-bold text-xs transition shadow-md shadow-orange-200 cursor-pointer flex items-center justify-center gap-2"
-            >
-              <span>{submitting ? 'Đang gửi đơn hàng...' : 'Xác Nhận Đặt Hàng Hỏa Tốc (COD)'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {!authLoading && !user ? (
+              <div className="p-4 rounded-2xl bg-orange-50 border border-orange-200 space-y-3 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#ff7f5c]">
+                  <Lock className="w-4 h-4" />
+                  <span>Vui lòng đăng nhập để đặt hàng</span>
+                </div>
+                <p className="text-[11px] text-gray-600">
+                  Bạn cần có tài khoản Mèo Cưng để xác nhận đơn hàng và nhận Gmail thông báo.
+                </p>
+                <div className="flex gap-2">
+                  <Link
+                    href="/login?redirect=/cart"
+                    className="flex-1 py-2.5 px-3 rounded-full bg-[#ff7f5c] hover:bg-[#f0643d] text-white font-bold text-xs transition flex items-center justify-center gap-1.5"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>Đăng nhập</span>
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="flex-1 py-2.5 px-3 rounded-full bg-white border border-orange-200 hover:border-[#ff7f5c] text-[#ff7f5c] font-bold text-xs transition flex items-center justify-center"
+                  >
+                    Đăng ký
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={submitting || authLoading}
+                className="w-full py-3.5 rounded-full bg-[#ff7f5c] hover:bg-[#f0643d] disabled:opacity-60 text-white font-bold text-xs transition shadow-md shadow-orange-200 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>{submitting ? 'Đang gửi đơn hàng...' : 'Xác Nhận Đặt Hàng Hỏa Tốc (COD)'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
           </form>
         </div>
       </div>

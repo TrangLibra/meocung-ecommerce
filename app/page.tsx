@@ -25,10 +25,10 @@ export default async function HomePage() {
   };
 
   const policies = [
-    { title: 'Sản phẩm an toàn', subtitle: '100% nguồn gốc rõ ràng', bgColor: '#FAF7CA', icon: '🛡️' },
-    { title: 'Chất lượng chính hãng', subtitle: 'Hạt & pate dinh dưỡng cao', bgColor: '#E3FFD3', icon: '✨' },
-    { title: 'Dịch vụ uy tín', subtitle: 'Tư vấn nuôi mèo 24/7', bgColor: '#FED5DC', icon: '🎖️' },
-    { title: 'Giao hàng hoả tốc', subtitle: 'Nhanh chóng trong 2h tại HCM', bgColor: '#E4E7FF', icon: '🚀' },
+    { title: 'Sản phẩm an toàn', subtitle: '100% nguồn gốc rõ ràng', bgColor: '#FAF7CA', icon: '🛡️', href: '/chinh-sach#chinh-hang' },
+    { title: 'Chất lượng chính hãng', subtitle: 'Hạt & pate dinh dưỡng cao', bgColor: '#E3FFD3', icon: '✨', href: '/chinh-sach#chinh-hang' },
+    { title: 'Đổi trả 7 ngày', subtitle: 'Hoàn tiền nhanh nếu lỗi NSX', bgColor: '#FED5DC', icon: '🎖️', href: '/chinh-sach#doi-tra' },
+    { title: 'Giao hàng hoả tốc', subtitle: 'Nhanh chóng trong 2h tại HCM', bgColor: '#E4E7FF', icon: '🚀', href: '/chinh-sach#giao-hang' },
   ];
 
   return (
@@ -77,8 +77,9 @@ export default async function HomePage() {
       <section>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {policies.map((policy, index) => (
-            <div
+            <Link
               key={index}
+              href={policy.href}
               className="flex items-center gap-4 rounded-2xl border border-black/5 p-4 sm:p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-md cursor-pointer"
               style={{ backgroundColor: policy.bgColor }}
             >
@@ -93,7 +94,7 @@ export default async function HomePage() {
                   {policy.subtitle}
                 </p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
