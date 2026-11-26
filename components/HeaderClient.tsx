@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import type { Product } from '@/lib/products';
 import {
   Phone,
   Search,
@@ -22,8 +23,14 @@ export default function HeaderClient() {
   const { totalItems } = useCart();
   const { user, loading: authLoading, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchCategory, setSearchCategory] = useState('all');
+  const [searchHits, setSearchHits] = useState<Product[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [searchMeta, setSearchMeta] = useState<{ source: string; ms: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -31,10 +38,46 @@ export default function HeaderClient() {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const q = searchTerm.trim();
+    if (!q) {
+      setSearchHits([]);
+      setSearchMeta(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const params = new URLSearchParams({ q, limit: '5' });
+        if (searchCategory !== 'all') params.set('category', searchCategory);
+        const res = await fetch(`/api/search?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchHits(Array.isArray(data.hits) ? data.hits : []);
+          setSearchMeta({
+            source: data.source || 'meilisearch',
+            ms: data.processingTimeMs || 1,
+          });
+          setSearchOpen(true);
+        }
+      } catch {
+        setSearchHits([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, searchCategory]);
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -67,30 +110,101 @@ export default function HeaderClient() {
           </div>
         </Link>
 
-        {/* Pill Search Bar with working submit */}
-        <form
-          onSubmit={handleSearch}
-          className="hidden md:flex flex-1 max-w-xl items-center rounded-full border border-gray-300 p-1 pl-4 hover:border-[#ff7f5c] transition focus-within:border-[#ff7f5c] focus-within:ring-2 focus-within:ring-[#ff7f5c]/20 bg-white"
-        >
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 pr-3 border-r border-gray-200 cursor-pointer select-none">
-            <span>Tất cả</span>
-            <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm thức ăn hạt, pate, cát vệ sinh..."
-            className="flex-1 bg-transparent px-3 py-1.5 text-sm outline-none text-gray-800 placeholder-gray-400"
-          />
-          <button
-            type="submit"
-            className="w-10 h-10 rounded-full bg-[#ff7f5c] hover:bg-[#f0643d] flex items-center justify-center text-white transition shadow-sm shrink-0 cursor-pointer"
-            aria-label="Tìm kiếm"
+        {/* Pill Instant Search Bar (Meilisearch + Typo-Tolerant) */}
+        <div ref={searchRef} className="hidden md:block flex-1 max-w-xl relative">
+          <form
+            onSubmit={(e) => {
+              setSearchOpen(false);
+              handleSearch(e);
+            }}
+            className="flex items-center rounded-full border border-gray-300 p-1 pl-3 hover:border-[#ff7f5c] transition focus-within:border-[#ff7f5c] focus-within:ring-2 focus-within:ring-[#ff7f5c]/20 bg-white"
           >
-            <Search className="w-4 h-4" />
-          </button>
-        </form>
+            <select
+              value={searchCategory}
+              onChange={(e) => setSearchCategory(e.target.value)}
+              aria-label="Danh mục tìm kiếm"
+              className="text-xs font-semibold text-gray-600 pr-2 mr-1 border-r border-gray-200 bg-transparent outline-none cursor-pointer"
+            >
+              <option value="all">Tất cả</option>
+              <option value="thuc-an-hat">Thức ăn hạt</option>
+              <option value="pate-cho-meo">Pate mèo</option>
+              <option value="cat-ve-sinh">Cát vệ sinh</option>
+              <option value="phu-kien">Phụ kiện</option>
+            </select>
+            <input
+              type="text"
+              value={searchTerm}
+              onFocus={() => searchHits.length > 0 && setSearchOpen(true)}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm nhanh hạt, pate, cát vệ sinh (hỗ trợ gõ không dấu)..."
+              className="flex-1 bg-transparent px-2.5 py-1.5 text-sm outline-none text-gray-800 placeholder-gray-400"
+            />
+            <button
+              type="submit"
+              className="w-10 h-10 rounded-full bg-[#ff7f5c] hover:bg-[#f0643d] flex items-center justify-center text-white transition shadow-sm shrink-0 cursor-pointer"
+              aria-label="Tìm kiếm"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          </form>
+
+          {searchOpen && searchTerm.trim() && (
+            <div className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+              {searching ? (
+                <div className="p-4 text-xs text-gray-500 text-center">
+                  Đang tìm kiếm...
+                </div>
+              ) : searchHits.length > 0 ? (
+                <>
+                  <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                    {searchHits.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={`/products/${item.id}`}
+                        onClick={() => setSearchOpen(false)}
+                        className="flex items-center gap-3 p-3 hover:bg-orange-50/60 transition"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-11 h-11 rounded-xl object-cover bg-gray-50 border border-gray-100 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-gray-800 truncate">
+                            {item.name}
+                          </p>
+                          <p className="text-[11px] text-gray-400">{item.categoryName}</p>
+                        </div>
+                        <span className="text-xs font-black text-[#ff7f5c] shrink-0">
+                          {item.price.toLocaleString('vi-VN')}₫
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="px-3.5 py-2 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-[11px]">
+                    <span className="text-gray-400">
+                      {searchMeta?.source === 'meilisearch' ? '⚡ Meilisearch' : '⚡ Instant Search'} • {searchMeta?.ms || 1}ms
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchOpen(false);
+                        router.push(`/products?q=${encodeURIComponent(searchTerm.trim())}`);
+                      }}
+                      className="font-bold text-[#ff7f5c] hover:underline cursor-pointer"
+                    >
+                      Xem tất cả kết quả →
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="p-4 text-xs text-gray-500 text-center">
+                  Không tìm thấy sản phẩm phù hợp với &ldquo;{searchTerm}&rdquo;.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Actions: Admin Edit, Hotline & Cart with real count */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
