@@ -34,7 +34,9 @@ export default function ProductCard({ product }: { product: Product }) {
       <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-[11px] text-gray-400">
-            <span>{product.categoryName}</span>
+            <span className="inline-flex items-center gap-1 font-medium text-slate-500">
+              🏪 {product.vendorName || 'Mèo Cưng Mall'}
+            </span>
             <div className="flex items-center gap-1 text-amber-500">
               <Star className="w-3 h-3 fill-amber-500" />
               <span>{product.rating}</span>

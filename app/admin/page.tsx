@@ -23,8 +23,14 @@ import {
 const PAYLOAD_ADMIN_URL = 'https://meocung-payload.vercel.app/admin';
 
 export default function UnifiedAdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'products' | 'dashboard' | 'payload'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'dashboard' | 'vendors' | 'payload'>('products');
   const [products, setProducts] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([
+    { id: 'v_meocung', name: 'Mèo Cưng Official Store', location: 'TP.HCM', productsCount: 5, status: 'Active' },
+    { id: 'v_royalcanin', name: 'Royal Canin Việt Nam', location: 'Hà Nội', productsCount: 2, status: 'Active' },
+    { id: 'v_ciao', name: 'Ciao Churu Pet Mall', location: 'TP.HCM', productsCount: 1, status: 'Active' },
+    { id: 'v_petaccessories', name: 'Phụ Kiện Thú Cưng Sài Gòn', location: 'Đà Nẵng', productsCount: 1, status: 'Active' },
+  ]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -34,6 +40,8 @@ export default function UnifiedAdminDashboard() {
   const [formData, setFormData] = useState({
     name: '',
     category: 'thuc-an-hat',
+    vendorId: 'v_meocung',
+    vendorName: 'Mèo Cưng Official Store',
     price: 150000,
     originalPrice: 180000,
     weight: '1kg',
@@ -237,6 +245,20 @@ export default function UnifiedAdminDashboard() {
               </span>
             </button>
             <button
+              onClick={() => setActiveTab('vendors')}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'vendors'
+                  ? 'bg-orange-50 text-orange-700 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Nhà Bán Hàng (Marketplace)
+              <span className="ml-auto text-xs bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">
+                {vendors.length}
+              </span>
+            </button>
+            <button
               onClick={() => setActiveTab('dashboard')}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'dashboard'
@@ -395,6 +417,46 @@ export default function UnifiedAdminDashboard() {
             </div>
           )}
 
+          {activeTab === 'vendors' && (
+            <div className="space-y-4 max-w-7xl mx-auto">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg">Mô hình Multi-Vendor Marketplace (Medusa v2)</h3>
+                  <p className="text-xs text-slate-500">Quản lý các thương hiệu và đối tác bán lẻ cung cấp hạt & phụ kiện</p>
+                </div>
+                <button
+                  onClick={() => alert('Chức năng onboard Nhà bán lẻ đối tác mới đang sẵn sàng!')}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg shadow-sm"
+                >
+                  <Plus className="w-4 h-4" /> Thêm Nhà Bán Hàng
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {vendors.map((v) => (
+                  <div key={v.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xl">
+                        🏪
+                      </div>
+                      <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold">
+                        {v.status}
+                      </span>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-base">{v.name}</h4>
+                      <p className="text-xs text-slate-400">Khu vực: {v.location}</p>
+                    </div>
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                      <span>Sản phẩm ký gửi:</span>
+                      <strong className="text-slate-800 font-bold">{v.productsCount} mặt hàng</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'payload' && (
             <div className="w-full h-[calc(100vh-120px)] bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
               <iframe
@@ -431,6 +493,22 @@ export default function UnifiedAdminDashboard() {
                   placeholder="VD: Hạt Royal Canin Indoor 2kg"
                   className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nhà bán hàng (Vendor / Marketplace)</label>
+                <select
+                  value={formData.vendorId}
+                  onChange={(e) => {
+                    const sel = vendors.find(v => v.id === e.target.value);
+                    setFormData({ ...formData, vendorId: e.target.value, vendorName: sel ? sel.name : 'Mèo Cưng Mall' });
+                  }}
+                  className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none bg-white"
+                >
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name} ({v.location})</option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
