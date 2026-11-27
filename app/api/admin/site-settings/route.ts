@@ -66,6 +66,38 @@ const DEFAULT_PAGES_CONFIG = {
     col4_title: 'Kết Nối Với Mèo Cưng',
     col4_desc: 'Đăng ký nhận thông tin khuyến mãi và bí quyết chăm sóc hoàng thượng khỏe mạnh!',
     col4_btn: 'Gửi',
+    columns: [
+      { id: 'col-brand', type: 'brand', title: 'Thông Tin Shop' },
+      {
+        id: 'col-cat',
+        type: 'links',
+        title: 'Danh Mục Nổi Bật',
+        links: [
+          { label: 'Thức ăn hạt dinh dưỡng', href: '/products?category=thuc-an-hat' },
+          { label: 'Pate & Súp thưởng cho mèo', href: '/products?category=pate-cho-meo' },
+          { label: 'Cát vệ sinh khử mùi', href: '/products?category=cat-ve-sinh' },
+          { label: 'Cẩm nang chăm sóc mèo cưng', href: '/tin-tuc' },
+        ],
+      },
+      {
+        id: 'col-policy',
+        type: 'links',
+        title: 'Chính Sách & Hỗ Trợ',
+        links: [
+          { label: 'Chính sách giao hàng 2H', href: '/chinh-sach#giao-hang' },
+          { label: 'Chính sách đổi trả trong 7 ngày', href: '/chinh-sach#doi-tra' },
+          { label: 'Hướng dẫn mua hàng & thanh toán', href: '/chinh-sach#mua-hang' },
+          { label: 'Cam kết sản phẩm chính hãng', href: '/chinh-sach#chinh-hang' },
+        ],
+      },
+      {
+        id: 'col-news',
+        type: 'newsletter',
+        title: 'Kết Nối Với Mèo Cưng',
+        desc: 'Đăng ký nhận thông tin khuyến mãi và bí quyết chăm sóc hoàng thượng khỏe mạnh!',
+        btn_text: 'Gửi',
+      },
+    ],
   },
 };
 
@@ -127,6 +159,10 @@ function normalizeSettings(row: any) {
           Array.isArray(rawPages.footer?.col3_links) && rawPages.footer.col3_links.length > 0
             ? rawPages.footer.col3_links
             : DEFAULT_PAGES_CONFIG.footer.col3_links,
+        columns:
+          Array.isArray(rawPages.footer?.columns) && rawPages.footer.columns.length > 0
+            ? rawPages.footer.columns
+            : DEFAULT_PAGES_CONFIG.footer.columns,
       },
     },
     updated_at: row?.updated_at || null,
