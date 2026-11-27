@@ -26,7 +26,7 @@ export default function ProductDetailPage() {
   );
 
   const handleAddToCart = () => {
-    addToCart({ ...product, price: finalPrice }, quantity);
+    addToCart(product, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };

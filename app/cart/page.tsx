@@ -7,6 +7,8 @@ import { useAuth } from '@/context/AuthContext';
 import { Trash2, ArrowRight, CheckCircle2, ShoppingBag, Mail, Lock, LogIn } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CatDialog from '@/components/CatDialog';
+import { getProductDiscount, useActiveVouchers } from '@/lib/useActiveVouchers';
+import { PRODUCTS } from '@/lib/products';
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice, totalItems } = useCart();
@@ -32,8 +34,31 @@ export default function CartPage() {
     }
   }, [user]);
 
-  const shippingFee = totalPrice >= 300000 || totalPrice === 0 ? 0 : 25000;
-  const grandTotal = totalPrice + shippingFee;
+  const vouchers = useActiveVouchers();
+
+  // Tính giá gốc sản phẩm và số tiền giảm từ voucher đang bật
+  const cartBreakdown = cart.map((item) => {
+    const catalogProd = PRODUCTS.find((p) => p.id === item.product.id);
+    const baseProduct = catalogProd ? { ...item.product, price: catalogProd.price } : item.product;
+    const disc = getProductDiscount(baseProduct, vouchers);
+    return {
+      item,
+      unitOriginal: baseProduct.price,
+      unitFinal: disc.finalPrice,
+      lineOriginal: baseProduct.price * item.quantity,
+      lineDiscount: (baseProduct.price - disc.finalPrice) * item.quantity,
+      voucherCode: disc.voucherCode,
+    };
+  });
+
+  const originalSubtotal = cartBreakdown.reduce((sum, x) => sum + x.lineOriginal, 0);
+  const voucherDiscount = cartBreakdown.reduce((sum, x) => sum + x.lineDiscount, 0);
+  const appliedCodes = Array.from(
+    new Set(cartBreakdown.map((x) => x.voucherCode).filter(Boolean))
+  ) as string[];
+  const afterDiscount = Math.max(0, originalSubtotal - voucherDiscount);
+  const shippingFee = afterDiscount >= 300000 || afterDiscount === 0 ? 0 : 25000;
+  const grandTotal = afterDiscount + shippingFee;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,12 +82,12 @@ export default function CartPage() {
           phone,
           address,
           note,
-          items: cart.map((item) => ({
-            name: item.product.name,
-            quantity: item.quantity,
-            price: item.product.price,
+          items: cartBreakdown.map((x) => ({
+            name: x.item.product.name,
+            quantity: x.item.quantity,
+            price: x.unitFinal,
           })),
-          totalPrice,
+          totalPrice: afterDiscount,
           shippingFee,
           grandTotal,
         }),
@@ -288,8 +313,16 @@ export default function CartPage() {
             <div className="pt-3 border-t border-gray-100 space-y-2 text-xs">
               <div className="flex justify-between text-gray-600">
                 <span>Tạm tính:</span>
-                <span>{totalPrice.toLocaleString('vi-VN')}₫</span>
+                <span>{originalSubtotal.toLocaleString('vi-VN')}₫</span>
               </div>
+              {voucherDiscount > 0 && (
+                <div className="flex justify-between text-emerald-600 font-bold">
+                  <span>
+                    Giảm giá voucher{appliedCodes.length > 0 ? ` (${appliedCodes.join(', ')})` : ''}:
+                  </span>
+                  <span>-{voucherDiscount.toLocaleString('vi-VN')}₫</span>
+                </div>
+              )}
               <div className="flex justify-between text-gray-600">
                 <span>Phí giao hàng (TP.HCM):</span>
                 <span>{shippingFee === 0 ? 'Miễn phí' : `${shippingFee.toLocaleString('vi-VN')}₫`}</span>
