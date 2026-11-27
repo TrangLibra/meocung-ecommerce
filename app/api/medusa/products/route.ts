@@ -52,6 +52,8 @@ function formatProductRow(p: any, idx = 0) {
     soldCount: 50 + idx * 10,
     inStock: Number(meta.inventory ?? 100) > 0,
     description: p.description || '',
+    variants: Array.isArray(meta.variants) ? meta.variants : [],
+    attributes: Array.isArray(meta.attributes) ? meta.attributes : [],
   };
 }
 
@@ -120,6 +122,8 @@ export async function POST(request: NextRequest) {
       category: body.category || 'thuc-an-hat',
       categoryName: body.categoryName || 'Thức ăn hạt',
       collection_id: body.collection_id || '',
+      variants: Array.isArray(body.variants) ? body.variants : [],
+      attributes: Array.isArray(body.attributes) ? body.attributes : [],
     };
 
     await pool.query(
@@ -164,6 +168,8 @@ export async function PUT(request: NextRequest) {
       ...(body.category !== undefined ? { category: body.category } : {}),
       ...(body.categoryName !== undefined ? { categoryName: body.categoryName } : {}),
       ...(body.collection_id !== undefined ? { collection_id: body.collection_id } : {}),
+      ...(body.variants !== undefined ? { variants: Array.isArray(body.variants) ? body.variants : [] } : {}),
+      ...(body.attributes !== undefined ? { attributes: Array.isArray(body.attributes) ? body.attributes : [] } : {}),
     };
 
     const name = body.name || body.title || null;
