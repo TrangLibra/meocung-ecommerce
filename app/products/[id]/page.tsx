@@ -39,6 +39,14 @@ export default function ProductDetailPage() {
         }
       })
       .catch(() => {});
+
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === 'MEOCUNG_LIVE_PREVIEW' && e.data.settings?.pages_config?.product_detail) {
+        setPageCfg((prev: any) => ({ ...prev, ...e.data.settings.pages_config.product_detail }));
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
   }, []);
 
   if (!product) {

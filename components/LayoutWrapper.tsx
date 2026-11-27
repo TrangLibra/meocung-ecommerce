@@ -32,6 +32,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         if (data?.settings) setSiteCfg(data.settings);
       })
       .catch(() => {});
+
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === 'MEOCUNG_LIVE_PREVIEW' && e.data.settings) {
+        setSiteCfg(e.data.settings);
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
   }, []);
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {

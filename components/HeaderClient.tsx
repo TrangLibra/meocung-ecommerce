@@ -59,6 +59,14 @@ export default function HeaderClient() {
         if (data?.settings) setSiteCfg(data.settings);
       })
       .catch(() => {});
+
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === 'MEOCUNG_LIVE_PREVIEW' && e.data.settings) {
+        setSiteCfg(e.data.settings);
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
   }, []);
 
   useEffect(() => {
