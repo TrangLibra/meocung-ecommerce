@@ -91,29 +91,51 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           </div>
 
           <div>
-            <h4 className="font-bold text-gray-900 mb-3 text-sm">Danh Mục Nổi Bật</h4>
+            <h4 className="font-bold text-gray-900 mb-3 text-sm">
+              {siteCfg.pages_config?.footer?.col2_title || 'Danh Mục Nổi Bật'}
+            </h4>
             <ul className="space-y-2 text-xs">
-              <li><a href="/products?category=thuc-an-hat" className="hover:text-[#ff7f5c] transition-colors">Thức ăn hạt dinh dưỡng</a></li>
-              <li><a href="/products?category=pate-cho-meo" className="hover:text-[#ff7f5c] transition-colors">Pate & Súp thưởng cho mèo</a></li>
-              <li><a href="/products?category=cat-ve-sinh" className="hover:text-[#ff7f5c] transition-colors">Cát vệ sinh khử mùi</a></li>
-              <li><a href="/tin-tuc" className="hover:text-[#ff7f5c] transition-colors">Cẩm nang chăm sóc mèo cưng</a></li>
+              {(siteCfg.pages_config?.footer?.col2_links || [
+                { label: 'Thức ăn hạt dinh dưỡng', href: '/products?category=thuc-an-hat' },
+                { label: 'Pate & Súp thưởng cho mèo', href: '/products?category=pate-cho-meo' },
+                { label: 'Cát vệ sinh khử mùi', href: '/products?category=cat-ve-sinh' },
+                { label: 'Cẩm nang chăm sóc mèo cưng', href: '/tin-tuc' },
+              ]).map((lnk: any, idx: number) => (
+                <li key={idx}>
+                  <Link href={lnk.href || '/'} className="hover:text-[#ff7f5c] transition-colors">
+                    {lnk.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-gray-900 mb-3 text-sm">Chính Sách & Hỗ Trợ</h4>
+            <h4 className="font-bold text-gray-900 mb-3 text-sm">
+              {siteCfg.pages_config?.footer?.col3_title || 'Chính Sách & Hỗ Trợ'}
+            </h4>
             <ul className="space-y-2 text-xs">
-              <li><Link href="/chinh-sach#giao-hang" className="hover:text-[#ff7f5c] transition-colors">Chính sách giao hàng 2H</Link></li>
-              <li><Link href="/chinh-sach#doi-tra" className="hover:text-[#ff7f5c] transition-colors">Chính sách đổi trả trong 7 ngày</Link></li>
-              <li><Link href="/chinh-sach#mua-hang" className="hover:text-[#ff7f5c] transition-colors">Hướng dẫn mua hàng & thanh toán</Link></li>
-              <li><Link href="/chinh-sach#chinh-hang" className="hover:text-[#ff7f5c] transition-colors">Cam kết sản phẩm chính hãng</Link></li>
+              {(siteCfg.pages_config?.footer?.col3_links || [
+                { label: 'Chính sách giao hàng 2H', href: '/chinh-sach#giao-hang' },
+                { label: 'Chính sách đổi trả trong 7 ngày', href: '/chinh-sach#doi-tra' },
+                { label: 'Hướng dẫn mua hàng & thanh toán', href: '/chinh-sach#mua-hang' },
+                { label: 'Cam kết sản phẩm chính hãng', href: '/chinh-sach#chinh-hang' },
+              ]).map((lnk: any, idx: number) => (
+                <li key={idx}>
+                  <Link href={lnk.href || '/'} className="hover:text-[#ff7f5c] transition-colors">
+                    {lnk.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-gray-900 mb-3 text-sm">Kết Nối Với Mèo Cưng</h4>
+            <h4 className="font-bold text-gray-900 mb-3 text-sm">
+              {siteCfg.pages_config?.footer?.col4_title || 'Kết Nối Với Mèo Cưng'}
+            </h4>
             <p className="text-xs text-gray-500 mb-3">
-              Đăng ký nhận thông tin khuyến mãi và bí quyết chăm sóc hoàng thượng khỏe mạnh!
+              {siteCfg.pages_config?.footer?.col4_desc || 'Đăng ký nhận thông tin khuyến mãi và bí quyết chăm sóc hoàng thượng khỏe mạnh!'}
             </p>
             {subscribed ? (
               <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
@@ -132,9 +154,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                 />
                 <button
                   type="submit"
-                  className="bg-[#ff7f5c] hover:bg-[#e06b49] text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+                  className="text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+                  style={{ backgroundColor: siteCfg.primary_color || '#ff7f5c' }}
                 >
-                  Gửi
+                  {siteCfg.pages_config?.footer?.col4_btn || 'Gửi'}
                 </button>
               </form>
             )}

@@ -48,6 +48,25 @@ const DEFAULT_PAGES_CONFIG = {
       'Tổng hợp 100+ kiến thức dinh dưỡng, cách phòng bệnh và cẩm nang nuôi dưỡng thú cưng chuẩn khoa học từ PayloadCMS',
     read_more_text: 'Đọc tiếp',
   },
+  footer: {
+    col2_title: 'Danh Mục Nổi Bật',
+    col2_links: [
+      { label: 'Thức ăn hạt dinh dưỡng', href: '/products?category=thuc-an-hat' },
+      { label: 'Pate & Súp thưởng cho mèo', href: '/products?category=pate-cho-meo' },
+      { label: 'Cát vệ sinh khử mùi', href: '/products?category=cat-ve-sinh' },
+      { label: 'Cẩm nang chăm sóc mèo cưng', href: '/tin-tuc' },
+    ],
+    col3_title: 'Chính Sách & Hỗ Trợ',
+    col3_links: [
+      { label: 'Chính sách giao hàng 2H', href: '/chinh-sach#giao-hang' },
+      { label: 'Chính sách đổi trả trong 7 ngày', href: '/chinh-sach#doi-tra' },
+      { label: 'Hướng dẫn mua hàng & thanh toán', href: '/chinh-sach#mua-hang' },
+      { label: 'Cam kết sản phẩm chính hãng', href: '/chinh-sach#chinh-hang' },
+    ],
+    col4_title: 'Kết Nối Với Mèo Cưng',
+    col4_desc: 'Đăng ký nhận thông tin khuyến mãi và bí quyết chăm sóc hoàng thượng khỏe mạnh!',
+    col4_btn: 'Gửi',
+  },
 };
 
 let schemaReady = false;
@@ -97,6 +116,18 @@ function normalizeSettings(row: any) {
       home: { ...DEFAULT_PAGES_CONFIG.home, ...(rawPages.home || {}) },
       product_detail: { ...DEFAULT_PAGES_CONFIG.product_detail, ...(rawPages.product_detail || {}) },
       news_page: { ...DEFAULT_PAGES_CONFIG.news_page, ...(rawPages.news_page || {}) },
+      footer: {
+        ...DEFAULT_PAGES_CONFIG.footer,
+        ...(rawPages.footer || {}),
+        col2_links:
+          Array.isArray(rawPages.footer?.col2_links) && rawPages.footer.col2_links.length > 0
+            ? rawPages.footer.col2_links
+            : DEFAULT_PAGES_CONFIG.footer.col2_links,
+        col3_links:
+          Array.isArray(rawPages.footer?.col3_links) && rawPages.footer.col3_links.length > 0
+            ? rawPages.footer.col3_links
+            : DEFAULT_PAGES_CONFIG.footer.col3_links,
+      },
     },
     updated_at: row?.updated_at || null,
   };
