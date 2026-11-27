@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { Pool } from 'pg';
 
 const DEFAULT_NEON_URL =
@@ -33,7 +32,7 @@ export interface NeonOrder {
 
 const globalForOrderPg = globalThis as unknown as {
   __meocungNeonPool?: Pool;
-  __meocungOrderTableReady?: boolean;
+  __meocungOrdersTableReady?: boolean;
 };
 
 function getPool(): Pool {
@@ -48,49 +47,37 @@ function getPool(): Pool {
 }
 
 async function ensureOrderTable(): Promise<void> {
-  if (globalForOrderPg.__meocungOrderTableReady) return;
+  if (globalForOrderPg.__meocungOrdersTableReady) return;
   const pool = getPool();
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS "storefront_order" (
-      "id" text NOT NULL,
-      "order_code" text NOT NULL,
-      "user_id" text NULL,
-      "customer_name" text NOT NULL,
-      "customer_email" text NOT NULL,
-      "customer_phone" text NOT NULL,
-      "shipping_address" text NOT NULL,
-      "note" text NULL,
-      "items" jsonb NOT NULL DEFAULT '[]'::jsonb,
-      "subtotal" integer NOT NULL DEFAULT 0,
-      "shipping_fee" integer NOT NULL DEFAULT 0,
-      "grand_total" integer NOT NULL DEFAULT 0,
-      "status" text NOT NULL DEFAULT 'pending',
-      "tracking_code" text NULL,
-      "created_at" timestamptz NOT NULL DEFAULT now(),
-      "updated_at" timestamptz NOT NULL DEFAULT now(),
-      CONSTRAINT "storefront_order_pkey" PRIMARY KEY ("id")
-    );
-  `);
-  globalForOrderPg.__meocungOrderTableReady = true;
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "order_code" text NULL;`);
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "user_id" text NULL;`);
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "customer_email" text NULL;`);
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "items" jsonb NOT NULL DEFAULT '[]'::jsonb;`);
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "subtotal" integer NOT NULL DEFAULT 0;`);
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_fee" integer NOT NULL DEFAULT 0;`);
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tracking_code" text NULL;`);
+  globalForOrderPg.__meocungOrdersTableReady = true;
 }
 
 function mapRowToOrder(row: any): NeonOrder {
+  const rawStatus = String(row.order_status || 'pending');
+  const status: OrderStatus = ['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(rawStatus)
+    ? (rawStatus as OrderStatus)
+    : 'pending';
   return {
     id: String(row.id),
-    order_code: String(row.order_code),
+    order_code: row.order_code ? String(row.order_code) : `ORD-${row.id}`,
     user_id: row.user_id ? String(row.user_id) : null,
-    customer_name: String(row.customer_name),
-    customer_email: String(row.customer_email),
-    customer_phone: String(row.customer_phone),
-    shipping_address: String(row.shipping_address),
-    note: row.note ? String(row.note) : null,
+    customer_name: String(row.customer_name || ''),
+    customer_email: row.customer_email ? String(row.customer_email) : '',
+    customer_phone: String(row.customer_phone || ''),
+    shipping_address: String(row.shipping_address || ''),
+    note: row.notes ? String(row.notes) : null,
     items: Array.isArray(row.items) ? row.items : [],
-    subtotal: Number(row.subtotal) || 0,
+    subtotal: Number(row.subtotal) || Number(row.total_amount) || 0,
     shipping_fee: Number(row.shipping_fee) || 0,
-    grand_total: Number(row.grand_total) || 0,
-    status: (['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(row.status)
-      ? row.status
-      : 'pending') as OrderStatus,
+    grand_total: Number(row.total_amount) || 0,
+    status,
     tracking_code: row.tracking_code ? String(row.tracking_code) : null,
     created_at: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
     updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
@@ -112,16 +99,14 @@ export async function createNeonOrder(input: {
 }): Promise<NeonOrder> {
   await ensureOrderTable();
   const pool = getPool();
-  const id = `ord_${crypto.randomUUID().replace(/-/g, '')}`;
   const { rows } = await pool.query(
-    `INSERT INTO "storefront_order" (
-      "id", "order_code", "user_id", "customer_name", "customer_email",
-      "customer_phone", "shipping_address", "note", "items",
-      "subtotal", "shipping_fee", "grand_total", "status", "created_at", "updated_at"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, 'pending', now(), now())
+    `INSERT INTO "orders" (
+      "order_code", "user_id", "customer_name", "customer_email",
+      "customer_phone", "shipping_address", "notes", "items",
+      "subtotal", "shipping_fee", "total_amount", "order_status", "created_at", "updated_at"
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, 'pending', now(), now())
     RETURNING *`,
     [
-      id,
       input.orderCode,
       input.userId || null,
       input.name,
@@ -152,19 +137,19 @@ export async function listNeonOrders(options?: {
     ['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(options.status)
   ) {
     params.push(options.status);
-    where.push(`"status" = $${params.length}`);
+    where.push(`"order_status" = $${params.length}`);
   }
 
   if (options?.q && options.q.trim()) {
     params.push(`%${options.q.trim().toLowerCase()}%`);
     const idx = params.length;
     where.push(
-      `(LOWER("order_code") LIKE $${idx} OR LOWER("customer_name") LIKE $${idx} OR LOWER("customer_email") LIKE $${idx} OR LOWER("customer_phone") LIKE $${idx})`
+      `(LOWER(COALESCE("order_code", '')) LIKE $${idx} OR LOWER("customer_name") LIKE $${idx} OR LOWER(COALESCE("customer_email", '')) LIKE $${idx} OR LOWER("customer_phone") LIKE $${idx})`
     );
   }
 
   const { rows } = await pool.query(
-    `SELECT * FROM "storefront_order" WHERE ${where.join(' AND ')} ORDER BY "created_at" DESC LIMIT 200`,
+    `SELECT * FROM "orders" WHERE ${where.join(' AND ')} ORDER BY "created_at" DESC LIMIT 200`,
     params
   );
   return rows.map(mapRowToOrder);
@@ -184,7 +169,7 @@ export async function updateNeonOrder(
     ['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(input.status)
   ) {
     params.push(input.status);
-    sets.push(`"status" = $${params.length}`);
+    sets.push(`"order_status" = $${params.length}`);
   }
 
   if (input.tracking_code !== undefined) {
@@ -196,9 +181,9 @@ export async function updateNeonOrder(
     sets.push(`"tracking_code" = $${params.length}`);
   }
 
-  params.push(id);
+  params.push(Number(id));
   const { rows } = await pool.query(
-    `UPDATE "storefront_order" SET ${sets.join(', ')} WHERE "id" = $${params.length} RETURNING *`,
+    `UPDATE "orders" SET ${sets.join(', ')} WHERE "id" = $${params.length} RETURNING *`,
     params
   );
   return rows[0] ? mapRowToOrder(rows[0]) : null;
@@ -208,8 +193,8 @@ export async function deleteNeonOrder(id: string): Promise<boolean> {
   await ensureOrderTable();
   const pool = getPool();
   const { rowCount } = await pool.query(
-    `DELETE FROM "storefront_order" WHERE "id" = $1`,
-    [id]
+    `DELETE FROM "orders" WHERE "id" = $1`,
+    [Number(id)]
   );
   return (rowCount || 0) > 0;
 }
