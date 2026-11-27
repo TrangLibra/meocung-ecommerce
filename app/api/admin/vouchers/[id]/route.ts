@@ -29,6 +29,9 @@ export async function PATCH(
       max_uses: body.max_uses,
       expires_at: body.expires_at,
       is_active: typeof body.is_active === 'boolean' ? body.is_active : undefined,
+      applicable_products: Array.isArray(body.applicable_products)
+        ? body.applicable_products
+        : undefined,
     });
     if (!updated) {
       return NextResponse.json(

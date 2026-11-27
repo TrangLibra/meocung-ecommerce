@@ -16,6 +16,7 @@ export interface NeonVoucher {
   used_count: number;
   expires_at: string | null;
   is_active: boolean;
+  applicable_products: string[];
   created_at: string;
   updated_at: string;
 }
@@ -51,10 +52,14 @@ async function ensureVoucherTable(): Promise<void> {
       "used_count" integer NOT NULL DEFAULT 0,
       "expires_at" timestamptz NULL,
       "is_active" boolean NOT NULL DEFAULT true,
+      "applicable_products" jsonb NOT NULL DEFAULT '[]'::jsonb,
       "created_at" timestamptz NOT NULL DEFAULT now(),
       "updated_at" timestamptz NOT NULL DEFAULT now()
     );
   `);
+  await pool.query(
+    `ALTER TABLE "voucher" ADD COLUMN IF NOT EXISTS "applicable_products" jsonb NOT NULL DEFAULT '[]'::jsonb;`
+  );
   globalForVoucherPg.__meocungVoucherTableReady = true;
 }
 
@@ -73,6 +78,9 @@ function mapRow(row: any): NeonVoucher {
     used_count: Number(row.used_count) || 0,
     expires_at: row.expires_at ? new Date(row.expires_at).toISOString() : null,
     is_active: row.is_active !== false,
+    applicable_products: Array.isArray(row.applicable_products)
+      ? row.applicable_products.map(String)
+      : [],
     created_at: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
     updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
   };
@@ -116,6 +124,7 @@ export async function createNeonVoucher(input: {
   max_uses?: number | null;
   expires_at?: string | null;
   is_active?: boolean;
+  applicable_products?: string[];
 }): Promise<NeonVoucher> {
   await ensureVoucherTable();
   const pool = getPool();
@@ -144,10 +153,14 @@ export async function createNeonVoucher(input: {
       ? new Date(String(input.expires_at)).toISOString()
       : null;
 
+  const applicableProducts = Array.isArray(input.applicable_products)
+    ? input.applicable_products.map(String).filter(Boolean)
+    : [];
+
   const { rows } = await pool.query(
     `INSERT INTO "voucher" (
-      "code", "title", "type", "discount_value", "min_order", "max_uses", "expires_at", "is_active", "created_at", "updated_at"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+      "code", "title", "type", "discount_value", "min_order", "max_uses", "expires_at", "is_active", "applicable_products", "created_at", "updated_at"
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, now(), now())
     RETURNING *`,
     [
       code,
@@ -158,6 +171,7 @@ export async function createNeonVoucher(input: {
       maxUses,
       expiresAt,
       input.is_active !== false,
+      JSON.stringify(applicableProducts),
     ]
   );
   return mapRow(rows[0]);
@@ -174,6 +188,7 @@ export async function updateNeonVoucher(
     max_uses?: number | null;
     expires_at?: string | null;
     is_active?: boolean;
+    applicable_products?: string[];
   }
 ): Promise<NeonVoucher | null> {
   await ensureVoucherTable();
@@ -233,6 +248,11 @@ export async function updateNeonVoucher(
   if (typeof input.is_active === 'boolean') {
     params.push(input.is_active);
     sets.push(`"is_active" = $${params.length}`);
+  }
+
+  if (Array.isArray(input.applicable_products)) {
+    params.push(JSON.stringify(input.applicable_products.map(String).filter(Boolean)));
+    sets.push(`"applicable_products" = $${params.length}::jsonb`);
   }
 
   params.push(Number(id));

@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       max_uses: body.max_uses,
       expires_at: body.expires_at,
       is_active: body.is_active !== false,
+      applicable_products: Array.isArray(body.applicable_products) ? body.applicable_products : [],
     });
 
     return NextResponse.json({ voucher }, { status: 201, headers: CORS_HEADERS });
