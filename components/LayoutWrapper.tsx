@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import HeaderClient from '@/components/HeaderClient';
@@ -12,6 +12,27 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const isAdmin = pathname?.startsWith('/admin');
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+
+  const [siteCfg, setSiteCfg] = useState<any>({
+    site_name: 'Mèo Cưng',
+    logo_url: '',
+    logo_emoji: '🐱',
+    top_notice: 'Mèo Cưng - Hệ thống phân phối thức ăn & cẩm nang chăm sóc mèo hàng đầu TP.HCM • Giao hàng hỏa tốc 2H!',
+    footer_about: 'Mèo Cưng - Địa chỉ tin cậy chuyên cung cấp thức ăn hạt, pate dinh dưỡng, cát vệ sinh và cẩm nang nuôi dưỡng thú cưng hàng đầu tại TP. Hồ Chí Minh.',
+    address: 'Quận 1, TP. Hồ Chí Minh, Việt Nam',
+    hotline: '0382 542 737',
+    footer_copyright: 'Bản quyền thuộc về Mèo Cưng Storefront.',
+    primary_color: '#ff7f5c',
+  });
+
+  useEffect(() => {
+    fetch('/api/admin/site-settings', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.settings) setSiteCfg(data.settings);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,9 +48,9 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   return (
     <>
       {/* Top Notice */}
-      <div className="bg-[#fff2ee] border-b border-[#ffd9ce] text-xs py-1.5 px-4 text-center text-[#ff6b42] font-medium flex items-center justify-center gap-2">
+      <div className="bg-[#fff2ee] border-b border-[#ffd9ce] text-xs py-1.5 px-4 text-center font-medium flex items-center justify-center gap-2" style={{ color: siteCfg.primary_color || '#ff6b42' }}>
         <Sparkles className="w-3.5 h-3.5" />
-        <span>Mèo Cưng - Hệ thống phân phối thức ăn & cẩm nang chăm sóc mèo hàng đầu TP.HCM • Giao hàng hỏa tốc 2H!</span>
+        <span>{siteCfg.top_notice}</span>
       </div>
 
       {/* Header */}
@@ -45,22 +66,26 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-[#ff7f5c] text-white flex items-center justify-center text-xl font-bold">
-                🐱
-              </div>
-              <span className="text-xl font-black text-[#ff7f5c]">Mèo Cưng</span>
+              {siteCfg.logo_url ? (
+                <img src={siteCfg.logo_url} alt={siteCfg.site_name} className="w-9 h-9 rounded-xl object-cover border border-orange-100" />
+              ) : (
+                <div className="w-9 h-9 rounded-xl text-white flex items-center justify-center text-xl font-bold" style={{ backgroundColor: siteCfg.primary_color || '#ff7f5c' }}>
+                  {siteCfg.logo_emoji || '🐱'}
+                </div>
+              )}
+              <span className="text-xl font-black" style={{ color: siteCfg.primary_color || '#ff7f5c' }}>{siteCfg.site_name || 'Mèo Cưng'}</span>
             </div>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Mèo Cưng - Địa chỉ tin cậy chuyên cung cấp thức ăn hạt, pate dinh dưỡng, cát vệ sinh và cẩm nang nuôi dưỡng thú cưng hàng đầu tại TP. Hồ Chí Minh.
+              {siteCfg.footer_about}
             </p>
             <div className="space-y-2 text-xs text-gray-500">
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#ff7f5c] shrink-0" />
-                <span>Quận 1, TP. Hồ Chí Minh, Việt Nam</span>
+                <MapPin className="w-4 h-4 shrink-0" style={{ color: siteCfg.primary_color || '#ff7f5c' }} />
+                <span>{siteCfg.address}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-[#ff7f5c] shrink-0" />
-                <span className="font-bold text-gray-700">0382 542 737</span>
+                <Phone className="w-4 h-4 shrink-0" style={{ color: siteCfg.primary_color || '#ff7f5c' }} />
+                <span className="font-bold text-gray-700">{siteCfg.hotline}</span>
               </div>
             </div>
           </div>
@@ -117,7 +142,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         </div>
 
         <div className="border-t border-gray-100 pt-6 text-center text-xs text-gray-400">
-          <p>© {new Date().getFullYear()} Mèo Cưng. Bản quyền thuộc về Mèo Cưng Storefront.</p>
+          <p>© {new Date().getFullYear()} {siteCfg.site_name || 'Mèo Cưng'}. {siteCfg.footer_copyright}</p>
         </div>
       </footer>
 

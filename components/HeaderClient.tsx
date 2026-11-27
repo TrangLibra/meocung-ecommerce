@@ -34,6 +34,33 @@ export default function HeaderClient() {
   const searchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
+  const [siteCfg, setSiteCfg] = useState<any>({
+    site_name: 'Mèo Cưng',
+    logo_url: '',
+    logo_emoji: '🐱',
+    tagline: 'Thức ăn & Cẩm nang mèo',
+    hotline: '0382 542 737',
+    shipping_badge: 'Giao nhanh 2h tại TP.HCM',
+    primary_color: '#ff7f5c',
+    navbar_links: [
+      { label: 'Danh mục sản phẩm', href: '/products' },
+      { label: 'Trang chủ', href: '/' },
+      { label: 'Thức ăn hạt', href: '/collections/thuc-an-hat' },
+      { label: 'Pate cho mèo', href: '/collections/pate-cho-meo' },
+      { label: 'Cát vệ sinh', href: '/collections/cat-ve-sinh' },
+      { label: 'Cẩm nang nuôi mèo', href: '/tin-tuc' },
+    ],
+  });
+
+  useEffect(() => {
+    fetch('/api/admin/site-settings', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.settings) setSiteCfg(data.settings);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -98,15 +125,29 @@ export default function HeaderClient() {
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#ff7f5c] to-[#ff9e84] flex items-center justify-center text-white shadow-md shadow-orange-200 group-hover:scale-105 transition-transform">
-            <span className="text-2xl">🐱</span>
-          </div>
+          {siteCfg.logo_url ? (
+            <img
+              src={siteCfg.logo_url}
+              alt={siteCfg.site_name}
+              className="w-12 h-12 rounded-2xl object-cover shadow-md shadow-orange-200 group-hover:scale-105 transition-transform border border-orange-100"
+            />
+          ) : (
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-md shadow-orange-200 group-hover:scale-105 transition-transform"
+              style={{ backgroundColor: siteCfg.primary_color || '#ff7f5c' }}
+            >
+              <span className="text-2xl">{siteCfg.logo_emoji || '🐱'}</span>
+            </div>
+          )}
           <div>
-            <span className="text-2xl font-black text-[#ff7f5c] tracking-tight block leading-none">
-              Mèo Cưng
+            <span
+              className="text-2xl font-black tracking-tight block leading-none"
+              style={{ color: siteCfg.primary_color || '#ff7f5c' }}
+            >
+              {siteCfg.site_name || 'Mèo Cưng'}
             </span>
             <span className="text-[11px] font-semibold text-gray-500 tracking-wide uppercase">
-              Thức ăn & Cẩm nang mèo
+              {siteCfg.tagline || 'Thức ăn & Cẩm nang mèo'}
             </span>
           </div>
         </Link>
@@ -220,11 +261,12 @@ export default function HeaderClient() {
           </a>
 
           <a
-            href="tel:0382542737"
-            className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full bg-orange-50 text-[#ff7f5c] hover:bg-orange-100 transition font-semibold text-xs border border-orange-200"
+            href={`tel:${(siteCfg.hotline || '0382542737').replace(/\s+/g, '')}`}
+            className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full bg-orange-50 hover:bg-orange-100 transition font-semibold text-xs border border-orange-200"
+            style={{ color: siteCfg.primary_color || '#ff7f5c' }}
           >
             <Phone className="w-4 h-4 animate-bounce" />
-            <span>0382 542 737</span>
+            <span>{siteCfg.hotline || '0382 542 737'}</span>
           </a>
 
           <Link
@@ -316,37 +358,27 @@ export default function HeaderClient() {
       </div>
 
       {/* Sub Navigation Bar */}
-      <div className="bg-[#ff7f5c] text-white shadow-inner">
+      <div className="text-white shadow-inner" style={{ backgroundColor: siteCfg.primary_color || '#ff7f5c' }}>
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between text-sm font-semibold">
           <div className="flex items-center overflow-x-auto scrollbar-none py-1">
-            <Link
-              href="/products"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg hover:bg-white/15 transition shrink-0 font-bold"
-            >
-              <Menu className="w-4 h-4" />
-              <span>Danh mục sản phẩm</span>
-            </Link>
-            <Link href="/" className="px-3.5 py-2.5 rounded-lg hover:bg-white/15 transition shrink-0">
-              Trang chủ
-            </Link>
-            <Link href="/collections/thuc-an-hat" className="px-3.5 py-2.5 rounded-lg hover:bg-white/15 transition shrink-0">
-              Thức ăn hạt
-            </Link>
-            <Link href="/collections/pate-cho-meo" className="px-3.5 py-2.5 rounded-lg hover:bg-white/15 transition shrink-0">
-              Pate cho mèo
-            </Link>
-            <Link href="/collections/cat-ve-sinh" className="px-3.5 py-2.5 rounded-lg hover:bg-white/15 transition shrink-0">
-              Cát vệ sinh
-            </Link>
-            <Link href="/tin-tuc" className="px-3.5 py-2.5 rounded-lg hover:bg-white/15 transition shrink-0 flex items-center gap-1.5 text-yellow-200">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Cẩm nang nuôi mèo</span>
-            </Link>
+            {(siteCfg.navbar_links || []).map((nav: any, idx: number) => (
+              <Link
+                key={`${nav.href}-${idx}`}
+                href={nav.href || '/'}
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg hover:bg-white/15 transition shrink-0 ${
+                  idx === 0 ? 'font-bold' : ''
+                } ${nav.href === '/tin-tuc' ? 'text-yellow-200' : ''}`}
+              >
+                {idx === 0 && <Menu className="w-4 h-4" />}
+                {nav.href === '/tin-tuc' && <Sparkles className="w-3.5 h-3.5" />}
+                <span>{nav.label}</span>
+              </Link>
+            ))}
           </div>
 
           <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-white/90">
             <Truck className="w-4 h-4" />
-            <span>Giao nhanh 2h tại TP.HCM</span>
+            <span>{siteCfg.shipping_badge || 'Giao nhanh 2h tại TP.HCM'}</span>
           </div>
         </div>
       </div>
