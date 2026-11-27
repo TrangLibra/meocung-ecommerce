@@ -5,13 +5,12 @@ import Link from 'next/link';
 import { Product } from '@/lib/products';
 import { useCart } from '@/context/CartContext';
 import { ShoppingCart, Star } from 'lucide-react';
+import { getProductDiscount, useActiveVouchers } from '@/lib/useActiveVouchers';
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
-
-  const discountPercent = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-    : 0;
+  const vouchers = useActiveVouchers();
+  const { finalPrice, originalPrice, discountPercent } = getProductDiscount(product, vouchers);
 
   return (
     <div className="group flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-[#ff7f5c]/50 hover:shadow-xl transition-all duration-300">
@@ -52,17 +51,17 @@ export default function ProductCard({ product }: { product: Product }) {
         <div className="pt-2 border-t border-gray-50 flex items-center justify-between gap-2">
           <div>
             <div className="text-base font-black text-[#ff7f5c]">
-              {product.price.toLocaleString('vi-VN')}₫
+              {finalPrice.toLocaleString('vi-VN')}₫
             </div>
-            {product.originalPrice && (
+            {originalPrice && (
               <div className="text-xs text-gray-400 line-through">
-                {product.originalPrice.toLocaleString('vi-VN')}₫
+                {originalPrice.toLocaleString('vi-VN')}₫
               </div>
             )}
           </div>
 
           <button
-            onClick={() => addToCart(product, 1)}
+            onClick={() => addToCart({ ...product, price: finalPrice }, 1)}
             className="w-9 h-9 rounded-xl bg-orange-50 hover:bg-[#ff7f5c] text-[#ff7f5c] hover:text-white flex items-center justify-center transition shadow-sm cursor-pointer"
             title="Thêm vào giỏ"
           >

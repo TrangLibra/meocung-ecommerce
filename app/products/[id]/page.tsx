@@ -74,11 +74,6 @@ export default function ProductDetailPage() {
               <span className="text-3xl font-black text-[#ff7f5c]">
                 {product.price.toLocaleString('vi-VN')}₫
               </span>
-              {product.originalPrice && (
-                <span className="text-sm text-gray-400 line-through">
-                  {product.originalPrice.toLocaleString('vi-VN')}₫
-                </span>
-              )}
             </div>
 
             <p className="text-sm text-gray-600 leading-relaxed">
