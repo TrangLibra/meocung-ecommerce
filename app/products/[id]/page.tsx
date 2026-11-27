@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { notFound, useParams } from 'next/navigation';
 import { PRODUCTS } from '@/lib/products';
 import { useCart } from '@/context/CartContext';
+import { getProductDiscount, useActiveVouchers } from '@/lib/useActiveVouchers';
 import Link from 'next/link';
 import { ShoppingCart, Star, ShieldCheck, Truck, RotateCcw, Phone, Check, ArrowRight } from 'lucide-react';
 
@@ -11,6 +12,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const product = PRODUCTS.find((p) => p.id === params.id);
   const { addToCart } = useCart();
+  const vouchers = useActiveVouchers();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
@@ -18,8 +20,13 @@ export default function ProductDetailPage() {
     notFound();
   }
 
+  const { finalPrice, originalPrice, discountPercent, voucherCode } = getProductDiscount(
+    product,
+    vouchers
+  );
+
   const handleAddToCart = () => {
-    addToCart(product, quantity);
+    addToCart({ ...product, price: finalPrice }, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -70,10 +77,20 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Price */}
-            <div className="p-4 rounded-2xl bg-orange-50/60 border border-orange-100 flex items-baseline gap-3">
+            <div className="p-4 rounded-2xl bg-orange-50/60 border border-orange-100 flex flex-wrap items-baseline gap-3">
               <span className="text-3xl font-black text-[#ff7f5c]">
-                {product.price.toLocaleString('vi-VN')}₫
+                {finalPrice.toLocaleString('vi-VN')}₫
               </span>
+              {originalPrice && (
+                <>
+                  <span className="text-sm text-gray-400 line-through">
+                    {originalPrice.toLocaleString('vi-VN')}₫
+                  </span>
+                  <span className="bg-red-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full">
+                    -{discountPercent}%{voucherCode ? ` (${voucherCode})` : ''}
+                  </span>
+                </>
+              )}
             </div>
 
             <p className="text-sm text-gray-600 leading-relaxed">
