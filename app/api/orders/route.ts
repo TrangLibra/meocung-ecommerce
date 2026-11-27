@@ -1,6 +1,29 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { sendOrderConfirmationEmail, OrderEmailItem } from '@/lib/email';
+import { createNeonOrder, listNeonOrdersByCustomer } from '@/lib/neon-orders';
+
+export async function GET() {
+  const sessionUser = getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json(
+      { error: 'Vui lòng đăng nhập để xem đơn hàng.' },
+      { status: 401 }
+    );
+  }
+  try {
+    const orders = await listNeonOrdersByCustomer({
+      id: sessionUser.id,
+      email: sessionUser.email,
+    });
+    return NextResponse.json({ orders, count: orders.length });
+  } catch {
+    return NextResponse.json(
+      { error: 'Không thể tải danh sách đơn hàng.' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: Request) {
   const sessionUser = getSessionUser();
@@ -82,6 +105,21 @@ export async function POST(request: Request) {
 
   const orderCode = `MC${Date.now().toString().slice(-6)}`;
 
+  // Lưu đơn hàng trực tiếp vào Neon PostgreSQL
+  const savedOrder = await createNeonOrder({
+    orderCode,
+    userId: sessionUser.id,
+    name,
+    email,
+    phone,
+    address,
+    note,
+    items,
+    subtotal: totalPrice,
+    shippingFee,
+    grandTotal,
+  });
+
   let emailSent = false;
   if (email) {
     const emailResult = await sendOrderConfirmationEmail({
@@ -102,6 +140,7 @@ export async function POST(request: Request) {
   return NextResponse.json(
     {
       ok: true,
+      orderId: savedOrder.id,
       orderCode,
       email,
       emailSent,

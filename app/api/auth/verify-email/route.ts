@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server';
 import {
   clearPendingCookie,
-  createUserFromPending,
   deletePendingRegistration,
-  findUserByEmail,
   getPendingFromCookie,
   getPendingRegistration,
   incrementPendingAttempts,
   setPendingCookie,
   setSessionCookie,
-  toPublicUser,
   verifyPendingCode,
 } from '@/lib/auth';
+import {
+  createNeonUser,
+  findNeonUserByEmail,
+  neonCustomerToPublicUser,
+} from '@/lib/neon-users';
 
 const MAX_OTP_ATTEMPTS = 5;
 
@@ -37,7 +39,8 @@ export async function POST(request: Request) {
     );
   }
 
-  if (findUserByEmail(email)) {
+  const existing = await findNeonUserByEmail(email);
+  if (existing) {
     return NextResponse.json(
       { error: 'Tài khoản này đã được xác thực. Vui lòng đăng nhập.' },
       { status: 409 }
@@ -77,9 +80,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const created = createUserFromPending(pending);
+  // Lưu tài khoản & mật khẩu (đã hash scrypt) trực tiếp vào bảng public.users trên Neon PostgreSQL
+  const created = await createNeonUser({
+    name: pending.name,
+    email: pending.email,
+    phone: pending.phone,
+    passwordHash: pending.passwordHash,
+    source: 'customer',
+  });
+
+  deletePendingRegistration(pending.email);
   clearPendingCookie();
-  const publicUser = toPublicUser(created);
+  const publicUser = neonCustomerToPublicUser(created);
   setSessionCookie(publicUser);
 
   return NextResponse.json({ user: publicUser }, { status: 201 });

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import {
-  findUserByEmail,
   savePendingRegistration,
   setPendingCookie,
 } from '@/lib/auth';
+import { findNeonUserByEmail } from '@/lib/neon-users';
 import { sendVerificationCodeEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
@@ -36,7 +36,8 @@ export async function POST(request: Request) {
       );
     }
 
-    if (findUserByEmail(email)) {
+    const existing = await findNeonUserByEmail(email);
+    if (existing) {
       return NextResponse.json(
         { error: 'Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.' },
         { status: 409 }
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: emailResult.skipped
-            ? 'Hệ thống chưa cấu hình SendGrid (SENDGRID_API_KEY / SENDGRID_FROM_EMAIL) trong .env.local.'
+            ? 'Hệ thống chưa cấu hình gửi Gmail OTP.'
             : `Không thể gửi mã xác thực tới Gmail: ${emailResult.error}`,
         },
         { status: 500 }
