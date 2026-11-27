@@ -3,7 +3,13 @@ import { Pool } from 'pg';
 const DEFAULT_NEON_URL =
   'postgresql://neondb_owner:npg_X7DysxtaILK5@ep-hidden-morning-bigw8w9g-pooler.c-5.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
 
-export type OrderStatus = 'pending' | 'confirmed' | 'shipping' | 'delivered' | 'cancelled';
+export type OrderStatus = 'draft' | 'pending' | 'confirmed' | 'shipping' | 'delivered' | 'cancelled';
+
+export interface OrderTimelineEvent {
+  time: string;
+  type: 'created' | 'status' | 'tracking' | 'note';
+  message: string;
+}
 
 export interface NeonOrderItem {
   name: string;
@@ -20,7 +26,9 @@ export interface NeonOrder {
   customer_phone: string;
   shipping_address: string;
   note: string | null;
+  internal_note: string | null;
   items: NeonOrderItem[];
+  timeline: OrderTimelineEvent[];
   subtotal: number;
   shipping_fee: number;
   grand_total: number;
@@ -56,12 +64,14 @@ async function ensureOrderTable(): Promise<void> {
   await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "subtotal" integer NOT NULL DEFAULT 0;`);
   await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "shipping_fee" integer NOT NULL DEFAULT 0;`);
   await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tracking_code" text NULL;`);
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "internal_note" text NULL;`);
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "timeline" jsonb NOT NULL DEFAULT '[]'::jsonb;`);
   globalForOrderPg.__meocungOrdersTableReady = true;
 }
 
 function mapRowToOrder(row: any): NeonOrder {
   const rawStatus = String(row.order_status || 'pending');
-  const status: OrderStatus = ['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(rawStatus)
+  const status: OrderStatus = ['draft', 'pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(rawStatus)
     ? (rawStatus as OrderStatus)
     : 'pending';
   return {
@@ -73,7 +83,9 @@ function mapRowToOrder(row: any): NeonOrder {
     customer_phone: String(row.customer_phone || ''),
     shipping_address: String(row.shipping_address || ''),
     note: row.notes ? String(row.notes) : null,
+    internal_note: row.internal_note ? String(row.internal_note) : null,
     items: Array.isArray(row.items) ? row.items : [],
+    timeline: Array.isArray(row.timeline) ? row.timeline : [],
     subtotal: Number(row.subtotal) || Number(row.total_amount) || 0,
     shipping_fee: Number(row.shipping_fee) || 0,
     grand_total: Number(row.total_amount) || 0,
@@ -92,6 +104,8 @@ export async function createNeonOrder(input: {
   phone: string;
   address: string;
   note?: string;
+  internalNote?: string;
+  status?: OrderStatus;
   items: NeonOrderItem[];
   subtotal: number;
   shippingFee: number;
@@ -99,12 +113,21 @@ export async function createNeonOrder(input: {
 }): Promise<NeonOrder> {
   await ensureOrderTable();
   const pool = getPool();
+  const initialStatus: OrderStatus =
+    input.status && ['draft', 'pending', 'confirmed'].includes(input.status) ? input.status : 'pending';
+  const initialTimeline: OrderTimelineEvent[] = [
+    {
+      time: new Date().toISOString(),
+      type: 'created',
+      message: initialStatus === 'draft' ? 'Tạo đơn hàng nháp (Draft Order) từ Admin' : 'Đơn hàng được tạo',
+    },
+  ];
   const { rows } = await pool.query(
     `INSERT INTO "orders" (
       "order_code", "user_id", "customer_name", "customer_email",
-      "customer_phone", "shipping_address", "notes", "items",
+      "customer_phone", "shipping_address", "notes", "internal_note", "items", "timeline",
       "subtotal", "shipping_fee", "total_amount", "order_status", "created_at", "updated_at"
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, 'pending', now(), now())
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13, $14, now(), now())
     RETURNING *`,
     [
       input.orderCode,
@@ -114,10 +137,13 @@ export async function createNeonOrder(input: {
       input.phone,
       input.address,
       input.note || null,
+      input.internalNote || null,
       JSON.stringify(input.items),
+      JSON.stringify(initialTimeline),
       Math.round(input.subtotal),
       Math.round(input.shippingFee),
       Math.round(input.grandTotal),
+      initialStatus,
     ]
   );
   return mapRowToOrder(rows[0]);
@@ -134,7 +160,7 @@ export async function listNeonOrders(options?: {
 
   if (
     options?.status &&
-    ['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(options.status)
+    ['draft', 'pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(options.status)
   ) {
     params.push(options.status);
     where.push(`"order_status" = $${params.length}`);
@@ -157,28 +183,57 @@ export async function listNeonOrders(options?: {
 
 export async function updateNeonOrder(
   id: string,
-  input: { status?: OrderStatus; tracking_code?: string | null }
+  input: {
+    status?: OrderStatus;
+    tracking_code?: string | null;
+    internal_note?: string | null;
+    timeline_message?: string;
+  }
 ): Promise<NeonOrder | null> {
   await ensureOrderTable();
   const pool = getPool();
   const sets: string[] = ['"updated_at" = now()'];
   const params: unknown[] = [];
+  const newEvents: OrderTimelineEvent[] = [];
+  const nowIso = new Date().toISOString();
 
   if (
     input.status &&
-    ['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(input.status)
+    ['draft', 'pending', 'confirmed', 'shipping', 'delivered', 'cancelled'].includes(input.status)
   ) {
     params.push(input.status);
     sets.push(`"order_status" = $${params.length}`);
+    newEvents.push({ time: nowIso, type: 'status', message: `Chuyển trạng thái sang: ${input.status}` });
   }
 
   if (input.tracking_code !== undefined) {
-    params.push(
+    const cleanCode =
       typeof input.tracking_code === 'string' && input.tracking_code.trim()
         ? input.tracking_code.trim()
-        : null
-    );
+        : null;
+    params.push(cleanCode);
     sets.push(`"tracking_code" = $${params.length}`);
+    if (cleanCode) {
+      newEvents.push({ time: nowIso, type: 'tracking', message: `Cập nhật mã vận đơn: ${cleanCode}` });
+    }
+  }
+
+  if (input.internal_note !== undefined) {
+    const cleanNote = typeof input.internal_note === 'string' ? input.internal_note.trim() : '';
+    params.push(cleanNote || null);
+    sets.push(`"internal_note" = $${params.length}`);
+    if (cleanNote) {
+      newEvents.push({ time: nowIso, type: 'note', message: `Ghi chú nội bộ: ${cleanNote}` });
+    }
+  }
+
+  if (input.timeline_message) {
+    newEvents.push({ time: nowIso, type: 'note', message: input.timeline_message });
+  }
+
+  if (newEvents.length > 0) {
+    params.push(JSON.stringify(newEvents));
+    sets.push(`"timeline" = COALESCE("timeline", '[]'::jsonb) || $${params.length}::jsonb`);
   }
 
   params.push(Number(id));
