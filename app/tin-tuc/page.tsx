@@ -39,25 +39,41 @@ async function getNewsPageConfig() {
 
 export default async function NewsPage() {
   const [posts, newsCfg] = await Promise.all([getLivePosts(), getNewsPageConfig()]);
+  const accent = newsCfg.accent_color || '#ff7f5c';
+  const colClass =
+    Number(newsCfg.columns_count) === 2
+      ? 'grid-cols-1 md:grid-cols-2'
+      : Number(newsCfg.columns_count) === 3
+      ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4';
 
   return (
-    <div className="space-y-8">
+    <div
+      className="space-y-8 rounded-3xl p-2"
+      style={{
+        backgroundColor: newsCfg.bg_color && newsCfg.bg_color !== '#ffffff' ? newsCfg.bg_color : undefined,
+        color: newsCfg.text_color || undefined,
+        fontFamily: newsCfg.font_family && newsCfg.font_family !== 'inherit' ? newsCfg.font_family : undefined,
+      }}
+    >
       {/* Banner */}
-      <div className="bg-gradient-to-r from-orange-50 via-white to-orange-50 p-6 sm:p-8 rounded-3xl border border-orange-100 space-y-2">
-        <span className="text-xs font-bold text-[#ff7f5c] uppercase tracking-wider flex items-center gap-1.5">
-          <BookOpen className="w-4 h-4" />
-          {newsCfg.badge_text}
-        </span>
-        <h1 className="text-2xl sm:text-4xl font-black text-gray-900">
-          {newsCfg.title}
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-600">
-          {newsCfg.subtitle}
-        </p>
-      </div>
+      {newsCfg.show_banner !== false && (
+        <div className="bg-gradient-to-r from-orange-50 via-white to-orange-50 p-6 sm:p-8 rounded-3xl border border-orange-100 space-y-2">
+          <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: accent }}>
+            <BookOpen className="w-4 h-4" />
+            {newsCfg.badge_text}
+          </span>
+          <h1 className="text-2xl sm:text-4xl font-black text-gray-900">
+            {newsCfg.title}
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-600">
+            {newsCfg.subtitle}
+          </p>
+        </div>
+      )}
 
       {/* Posts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={`grid ${colClass} gap-6`}>
         {posts.map((post: any) => {
           const formattedDate = post.publishedAt || post.date_created
             ? new Date(post.publishedAt || post.date_created).toLocaleDateString('vi-VN', {

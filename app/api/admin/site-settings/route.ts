@@ -32,6 +32,22 @@ const DEFAULT_PAGES_CONFIG = {
       'Cung cấp các dòng thức ăn hạt, pate thơm ngon, cát vệ sinh cao cấp và toàn bộ kiến thức nuôi dưỡng mèo chuẩn khoa học cho các "sen"!',
     hero_btn_text: 'Khám phá sản phẩm',
     hero_btn_link: '/products',
+    hero_bg_color: '#ff7f5c',
+    bg_color: '#ffffff',
+    text_color: '#111827',
+    accent_color: '#ff7f5c',
+    font_family: 'inherit',
+    categories_title: 'Danh Mục Nổi Bật',
+    featured_title: 'Sản Phẩm Nổi Bật',
+    blog_title: 'Cẩm Nang Nuôi Mèo Mới Nhất',
+    sections: [
+      { id: 'hero', label: 'Hero Banner Đầu Trang', visible: true },
+      { id: 'policies', label: '4 Thẻ Chính Sách Pastel', visible: true },
+      { id: 'banners', label: 'Dải Banner Quảng Cáo & Slider', visible: true },
+      { id: 'categories', label: 'Danh Mục Nổi Bật', visible: true },
+      { id: 'products', label: 'Sản Phẩm Nổi Bật', visible: true },
+      { id: 'blog', label: 'Cẩm Nang Nuôi Mèo Mới Nhất', visible: true },
+    ],
   },
   product_detail: {
     in_stock_text: 'Còn hàng',
@@ -40,6 +56,14 @@ const DEFAULT_PAGES_CONFIG = {
     badge_shipping: 'Giao 2H TP.HCM',
     badge_authentic: '100% Chính hãng',
     badge_return: 'Đổi trả 7 ngày',
+    custom_note: '',
+    show_breadcrumb: true,
+    show_rating: true,
+    show_guarantees: true,
+    bg_color: '#ffffff',
+    text_color: '#111827',
+    accent_color: '#ff7f5c',
+    font_family: 'inherit',
   },
   news_page: {
     badge_text: 'PayloadCMS 3.0 Headless CMS',
@@ -47,6 +71,12 @@ const DEFAULT_PAGES_CONFIG = {
     subtitle:
       'Tổng hợp 100+ kiến thức dinh dưỡng, cách phòng bệnh và cẩm nang nuôi dưỡng thú cưng chuẩn khoa học từ PayloadCMS',
     read_more_text: 'Đọc tiếp',
+    show_banner: true,
+    columns_count: 4,
+    bg_color: '#ffffff',
+    text_color: '#111827',
+    accent_color: '#ff7f5c',
+    font_family: 'inherit',
   },
   footer: {
     col2_title: 'Danh Mục Nổi Bật',
@@ -145,7 +175,14 @@ function normalizeSettings(row: any) {
     footer_copyright: row?.footer_copyright || 'Bản quyền thuộc về Mèo Cưng Storefront.',
     primary_color: row?.primary_color || '#ff7f5c',
     pages_config: {
-      home: { ...DEFAULT_PAGES_CONFIG.home, ...(rawPages.home || {}) },
+      home: {
+        ...DEFAULT_PAGES_CONFIG.home,
+        ...(rawPages.home || {}),
+        sections:
+          Array.isArray(rawPages.home?.sections) && rawPages.home.sections.length > 0
+            ? rawPages.home.sections
+            : DEFAULT_PAGES_CONFIG.home.sections,
+      },
       product_detail: { ...DEFAULT_PAGES_CONFIG.product_detail, ...(rawPages.product_detail || {}) },
       news_page: { ...DEFAULT_PAGES_CONFIG.news_page, ...(rawPages.news_page || {}) },
       footer: {
