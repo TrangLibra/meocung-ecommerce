@@ -61,7 +61,7 @@ export default function ProductCard({ product }: { product: Product }) {
           </div>
 
           <button
-            onClick={() => addToCart({ ...product, price: finalPrice }, 1)}
+            onClick={() => addToCart(product, 1)}
             className="w-9 h-9 rounded-xl bg-orange-50 hover:bg-[#ff7f5c] text-[#ff7f5c] hover:text-white flex items-center justify-center transition shadow-sm cursor-pointer"
             title="Thêm vào giỏ"
           >
