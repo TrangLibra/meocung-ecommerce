@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import CatDialog from '@/components/CatDialog';
 import { useCart } from '@/context/CartContext';
 import type { ChatProductSuggestion, ChatPostSuggestion } from '@/lib/chatbot';
 import {
@@ -213,13 +214,15 @@ export default function ChatbotWidget() {
     } catch {}
   }, [messages, hydrated]);
 
+  const [imageAlert, setImageAlert] = useState('');
+
   const handleImageFile = async (file: File | undefined) => {
     if (!file || !file.type.startsWith('image/')) return;
     try {
       const compressed = await compressImageToBase64(file);
       setPendingImage(compressed);
     } catch (err) {
-      alert(
+      setImageAlert(
         err instanceof Error
           ? err.message
           : 'Không thể đọc ảnh này. Vui lòng chọn ảnh JPG/PNG khác.'
@@ -704,6 +707,15 @@ export default function ChatbotWidget() {
           </>
         )}
       </button>
+
+      <CatDialog
+        open={Boolean(imageAlert)}
+        title="Mèo Cưng thông báo"
+        message={imageAlert}
+        mode="alert"
+        onConfirm={() => setImageAlert('')}
+        onClose={() => setImageAlert('')}
+      />
     </div>
   );
 }

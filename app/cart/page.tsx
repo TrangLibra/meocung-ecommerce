@@ -6,6 +6,7 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { Trash2, ArrowRight, CheckCircle2, ShoppingBag, Mail, Lock, LogIn } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import CatDialog from '@/components/CatDialog';
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice, totalItems } = useCart();
@@ -21,6 +22,7 @@ export default function CartPage() {
   const [ordered, setOrdered] = useState(false);
   const [orderCode, setOrderCode] = useState('');
   const [emailSent, setEmailSent] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -40,7 +42,7 @@ export default function CartPage() {
       return;
     }
     if (!name.trim() || !phone.trim() || !address.trim() || !email.trim()) {
-      alert('Vui lòng điền đầy đủ họ tên, Gmail, số điện thoại và địa chỉ nhận hàng!');
+      setAlertMessage('Vui lòng điền đầy đủ họ tên, Gmail, số điện thoại và địa chỉ nhận hàng!');
       return;
     }
 
@@ -67,7 +69,7 @@ export default function CartPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Không thể đặt hàng. Vui lòng thử lại.');
+        setAlertMessage(data.error || 'Không thể đặt hàng. Vui lòng thử lại.');
         return;
       }
       setOrderCode(data.orderCode || '');
@@ -75,7 +77,7 @@ export default function CartPage() {
       setOrdered(true);
       clearCart();
     } catch {
-      alert('Lỗi kết nối máy chủ. Vui lòng thử lại.');
+      setAlertMessage('Lỗi kết nối máy chủ. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -336,6 +338,15 @@ export default function CartPage() {
           </form>
         </div>
       </div>
+
+      <CatDialog
+        open={Boolean(alertMessage)}
+        title="Thông báo đặt hàng"
+        message={alertMessage}
+        mode="alert"
+        onConfirm={() => setAlertMessage('')}
+        onClose={() => setAlertMessage('')}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Package, Truck, CheckCircle2, Clock, XCircle, RefreshCw, MapPin, Phone } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import CatDialog from '@/components/CatDialog';
 
 type OrderStatus = 'pending' | 'confirmed' | 'shipping' | 'delivered' | 'cancelled';
 
@@ -75,11 +76,11 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [confirmCancelOrder, setConfirmCancelOrder] = useState<CustomerOrder | null>(null);
 
-  const handleCancelOrder = async (order: CustomerOrder) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng #${order.order_code}?`)) {
-      return;
-    }
+  const executeCancelOrder = async () => {
+    if (!confirmCancelOrder) return;
+    const order = confirmCancelOrder;
     setCancellingId(order.id);
     setError('');
     try {
@@ -99,6 +100,7 @@ export default function OrdersPage() {
       setError('Lỗi kết nối khi hủy đơn hàng.');
     } finally {
       setCancellingId(null);
+      setConfirmCancelOrder(null);
     }
   };
 
@@ -304,7 +306,7 @@ export default function OrdersPage() {
                       <button
                         type="button"
                         disabled={cancellingId === order.id}
-                        onClick={() => handleCancelOrder(order)}
+                        onClick={() => setConfirmCancelOrder(order)}
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold transition disabled:opacity-50"
                       >
                         <XCircle className="w-3.5 h-3.5" />
@@ -318,6 +320,22 @@ export default function OrdersPage() {
           ))}
         </div>
       )}
+
+      <CatDialog
+        open={Boolean(confirmCancelOrder)}
+        title="Xác nhận hủy đơn hàng"
+        message={
+          confirmCancelOrder
+            ? `Bạn có chắc chắn muốn hủy đơn hàng #${confirmCancelOrder.order_code}?`
+            : ''
+        }
+        mode="confirm"
+        confirmLabel="Hủy đơn hàng"
+        cancelLabel="Quay lại"
+        loading={Boolean(cancellingId)}
+        onConfirm={executeCancelOrder}
+        onClose={() => setConfirmCancelOrder(null)}
+      />
     </div>
   );
 }
