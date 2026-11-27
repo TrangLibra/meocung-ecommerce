@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { sendOrderConfirmationEmail, OrderEmailItem } from '@/lib/email';
 import { createNeonOrder, listNeonOrdersByCustomer } from '@/lib/neon-orders';
+import { saveNeonUserAddress } from '@/lib/neon-users';
 
 export async function GET() {
   const sessionUser = getSessionUser();
@@ -119,6 +120,14 @@ export async function POST(request: Request) {
     shippingFee,
     grandTotal,
   });
+
+  // Lưu lại địa chỉ giao hàng vào tài khoản khách hàng trên Neon
+  await saveNeonUserAddress({
+    id: sessionUser.id,
+    email,
+    address,
+    phone,
+  }).catch(() => {});
 
   let emailSent = false;
   if (email) {

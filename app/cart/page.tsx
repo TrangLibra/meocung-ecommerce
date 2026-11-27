@@ -31,7 +31,16 @@ export default function CartPage() {
       setName((prev) => prev || user.name || '');
       setEmail((prev) => prev || user.email || '');
       setPhone((prev) => prev || user.phone || '');
+      if (user.address) {
+        setAddress((prev) => prev || user.address || '');
+      }
     }
+    try {
+      const savedAddr = localStorage.getItem('meocung_saved_address');
+      if (savedAddr) {
+        setAddress((prev) => prev || savedAddr);
+      }
+    } catch {}
   }, [user]);
 
   const vouchers = useActiveVouchers();
@@ -99,6 +108,11 @@ export default function CartPage() {
       }
       setOrderCode(data.orderCode || '');
       setEmailSent(Boolean(data.emailSent));
+      try {
+        if (address.trim()) {
+          localStorage.setItem('meocung_saved_address', address.trim());
+        }
+      } catch {}
       setOrdered(true);
       clearCart();
     } catch {

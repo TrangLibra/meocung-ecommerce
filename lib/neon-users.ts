@@ -9,6 +9,7 @@ export interface NeonCustomer {
   name: string;
   email: string;
   phone: string | null;
+  address: string | null;
   status: 'active' | 'blocked';
   source: string;
   last_login_at: string | null;
@@ -37,6 +38,7 @@ async function ensureTable(): Promise<void> {
   const pool = getPool();
   await pool.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "name" text NULL;`);
   await pool.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" text NULL;`);
+  await pool.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "address" text NULL;`);
   await pool.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "status" text NOT NULL DEFAULT 'active';`);
   await pool.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "last_login_at" timestamptz NULL;`);
   globalForPg.__meocungUsersTableReady = true;
@@ -54,6 +56,7 @@ function mapRowToCustomer(row: any): NeonCustomer {
     name: row.name ? String(row.name) : String(row.email || '').split('@')[0] || 'Khách hàng',
     email: String(row.email),
     phone: row.phone ? String(row.phone) : null,
+    address: row.address ? String(row.address) : null,
     status: row.status === 'blocked' ? 'blocked' : 'active',
     source: row.role ? String(row.role) : 'customer',
     last_login_at: row.last_login_at ? new Date(row.last_login_at).toISOString() : null,
@@ -68,8 +71,43 @@ export function neonCustomerToPublicUser(c: NeonCustomer): PublicUser {
     name: c.name,
     email: c.email,
     phone: c.phone || undefined,
+    address: c.address || undefined,
     createdAt: c.created_at,
   };
+}
+
+export async function saveNeonUserAddress(input: {
+  id?: string;
+  email?: string;
+  address: string;
+  phone?: string;
+}): Promise<void> {
+  await ensureTable();
+  const pool = getPool();
+  const trimmedAddress = input.address.trim();
+  if (!trimmedAddress) return;
+  const trimmedPhone = input.phone?.trim() || null;
+  const normalizedEmail = (input.email || '').trim().toLowerCase();
+
+  if (input.id && !Number.isNaN(Number(input.id))) {
+    await pool.query(
+      `UPDATE "users"
+       SET "address" = $1,
+           "phone" = COALESCE($2, "phone"),
+           "updated_at" = now()
+       WHERE "id" = $3`,
+      [trimmedAddress, trimmedPhone, Number(input.id)]
+    );
+  } else if (normalizedEmail) {
+    await pool.query(
+      `UPDATE "users"
+       SET "address" = $1,
+           "phone" = COALESCE($2, "phone"),
+           "updated_at" = now()
+       WHERE LOWER("email") = $3`,
+      [trimmedAddress, trimmedPhone, normalizedEmail]
+    );
+  }
 }
 
 export async function findNeonUserByEmail(
