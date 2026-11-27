@@ -55,6 +55,17 @@ export function useActiveVouchers(): ActiveVoucher[] {
   return vouchers;
 }
 
+const MEDUSA_ID_ALIASES: Record<string, string[]> = {
+  p1: ['prod_01ROYALCANINFIT32'],
+  p2: ['prod_01REFLEXPLUS0002'],
+  p3: ['prod_01CIAOCHURU0003'],
+  p4: ['prod_01WHISKAS000004'],
+  p5: ['prod_01CATURETOFU0005'],
+  p6: ['prod_01SANICAT000006', 'prod_01BENTONITE00006'],
+  p7: ['prod_01CANCAULONGVU07'],
+  p8: ['prod_01BANCAOMONG008'],
+};
+
 export function getProductDiscount(
   product: Product,
   vouchers: ActiveVoucher[]
@@ -66,13 +77,20 @@ export function getProductDiscount(
 } {
   let bestDiscountAmount = 0;
   let bestCode: string | null = null;
+  const prodNameNorm = (product.name || '').trim().toLowerCase();
+  const aliases = MEDUSA_ID_ALIASES[product.id] || [];
 
   for (const v of vouchers) {
+    const list = Array.isArray(v.applicable_products) ? v.applicable_products : [];
     const applies =
-      !Array.isArray(v.applicable_products) ||
-      v.applicable_products.length === 0 ||
-      v.applicable_products.includes(product.id) ||
-      v.applicable_products.includes(product.slug);
+      list.length === 0 ||
+      list.includes(product.id) ||
+      list.includes(product.slug) ||
+      aliases.some((a) => list.includes(a)) ||
+      list.some((entry) => {
+        const e = String(entry).trim().toLowerCase();
+        return e && (e === prodNameNorm || prodNameNorm.includes(e) || e.includes(prodNameNorm));
+      });
 
     if (!applies) continue;
 
