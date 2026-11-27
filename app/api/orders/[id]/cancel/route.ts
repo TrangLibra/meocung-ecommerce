@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { cancelNeonOrderByCustomer } from '@/lib/neon-orders';
+import { adjustNeonProductStock } from '@/lib/neon-products';
 
 export async function POST(
   _request: Request,
@@ -22,6 +23,8 @@ export async function POST(
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
+    // Tự động hoàn lại tồn kho khi khách hủy đơn
+    await adjustNeonProductStock(result.order.items || [], 'restore').catch(() => {});
     return NextResponse.json({ ok: true, order: result.order }, { status: 200 });
   } catch {
     return NextResponse.json(
