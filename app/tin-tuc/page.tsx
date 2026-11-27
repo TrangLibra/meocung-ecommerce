@@ -23,8 +23,22 @@ async function getLivePosts() {
   return [];
 }
 
+async function getNewsPageConfig() {
+  try {
+    const res = await pool.query('SELECT pages_config FROM site_settings ORDER BY id ASC LIMIT 1');
+    const news = res.rows[0]?.pages_config?.news_page;
+    if (news) return news;
+  } catch (_) {}
+  return {
+    badge_text: 'PayloadCMS 3.0 Headless CMS',
+    title: 'Cẩm Nang Chăm Sóc Mèo & Tin Tức Mới',
+    subtitle: 'Tổng hợp 100+ kiến thức dinh dưỡng, cách phòng bệnh và cẩm nang nuôi dưỡng thú cưng chuẩn khoa học từ PayloadCMS',
+    read_more_text: 'Đọc tiếp',
+  };
+}
+
 export default async function NewsPage() {
-  const posts = await getLivePosts();
+  const [posts, newsCfg] = await Promise.all([getLivePosts(), getNewsPageConfig()]);
 
   return (
     <div className="space-y-8">
@@ -32,13 +46,13 @@ export default async function NewsPage() {
       <div className="bg-gradient-to-r from-orange-50 via-white to-orange-50 p-6 sm:p-8 rounded-3xl border border-orange-100 space-y-2">
         <span className="text-xs font-bold text-[#ff7f5c] uppercase tracking-wider flex items-center gap-1.5">
           <BookOpen className="w-4 h-4" />
-          PayloadCMS 3.0 Headless CMS
+          {newsCfg.badge_text}
         </span>
         <h1 className="text-2xl sm:text-4xl font-black text-gray-900">
-          Cẩm Nang Chăm Sóc Mèo & Tin Tức Mới
+          {newsCfg.title}
         </h1>
         <p className="text-xs sm:text-sm text-gray-600">
-          Tổng hợp 100+ kiến thức dinh dưỡng, cách phòng bệnh và cẩm nang nuôi dưỡng thú cưng chuẩn khoa học từ PayloadCMS
+          {newsCfg.subtitle}
         </p>
       </div>
 

@@ -24,6 +24,32 @@ const DEFAULT_NAVBAR_LINKS = [
   { label: 'Cẩm nang nuôi mèo', href: '/tin-tuc' },
 ];
 
+const DEFAULT_PAGES_CONFIG = {
+  home: {
+    hero_badge: '🐾 Mèo Cưng Pet Shop TP.HCM',
+    hero_title: 'Thức Ăn & Cẩm Nang Chăm Sóc Mèo Cưng Hoàn Hảo',
+    hero_subtitle:
+      'Cung cấp các dòng thức ăn hạt, pate thơm ngon, cát vệ sinh cao cấp và toàn bộ kiến thức nuôi dưỡng mèo chuẩn khoa học cho các "sen"!',
+    hero_btn_text: 'Khám phá sản phẩm',
+    hero_btn_link: '/products',
+  },
+  product_detail: {
+    in_stock_text: 'Còn hàng',
+    add_cart_text: 'Thêm vào giỏ hàng',
+    buy_now_text: 'Mua ngay',
+    badge_shipping: 'Giao 2H TP.HCM',
+    badge_authentic: '100% Chính hãng',
+    badge_return: 'Đổi trả 7 ngày',
+  },
+  news_page: {
+    badge_text: 'PayloadCMS 3.0 Headless CMS',
+    title: 'Cẩm Nang Chăm Sóc Mèo & Tin Tức Mới',
+    subtitle:
+      'Tổng hợp 100+ kiến thức dinh dưỡng, cách phòng bệnh và cẩm nang nuôi dưỡng thú cưng chuẩn khoa học từ PayloadCMS',
+    read_more_text: 'Đọc tiếp',
+  },
+};
+
 let schemaReady = false;
 async function ensureSiteSettingsColumns() {
   if (schemaReady) return;
@@ -37,12 +63,14 @@ async function ensureSiteSettingsColumns() {
       ADD COLUMN IF NOT EXISTS navbar_links JSONB,
       ADD COLUMN IF NOT EXISTS footer_about TEXT DEFAULT 'Mèo Cưng - Địa chỉ tin cậy chuyên cung cấp thức ăn hạt, pate dinh dưỡng, cát vệ sinh và cẩm nang nuôi dưỡng thú cưng hàng đầu tại TP. Hồ Chí Minh.',
       ADD COLUMN IF NOT EXISTS footer_copyright TEXT DEFAULT 'Bản quyền thuộc về Mèo Cưng Storefront.',
-      ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#ff7f5c';
+      ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#ff7f5c',
+      ADD COLUMN IF NOT EXISTS pages_config JSONB;
   `);
   schemaReady = true;
 }
 
 function normalizeSettings(row: any) {
+  const rawPages = row?.pages_config || {};
   return {
     id: row?.id || 1,
     site_name: row?.site_name || 'Mèo Cưng',
@@ -65,6 +93,11 @@ function normalizeSettings(row: any) {
       'Mèo Cưng - Địa chỉ tin cậy chuyên cung cấp thức ăn hạt, pate dinh dưỡng, cát vệ sinh và cẩm nang nuôi dưỡng thú cưng hàng đầu tại TP. Hồ Chí Minh.',
     footer_copyright: row?.footer_copyright || 'Bản quyền thuộc về Mèo Cưng Storefront.',
     primary_color: row?.primary_color || '#ff7f5c',
+    pages_config: {
+      home: { ...DEFAULT_PAGES_CONFIG.home, ...(rawPages.home || {}) },
+      product_detail: { ...DEFAULT_PAGES_CONFIG.product_detail, ...(rawPages.product_detail || {}) },
+      news_page: { ...DEFAULT_PAGES_CONFIG.news_page, ...(rawPages.news_page || {}) },
+    },
     updated_at: row?.updated_at || null,
   };
 }
@@ -96,6 +129,7 @@ export async function PUT(request: NextRequest) {
     const navbarLinksJson = Array.isArray(body.navbar_links)
       ? JSON.stringify(body.navbar_links.filter((x: any) => x && x.label && x.href))
       : JSON.stringify(DEFAULT_NAVBAR_LINKS);
+    const pagesConfigJson = JSON.stringify(body.pages_config || DEFAULT_PAGES_CONFIG);
 
     const existing = await pool.query('SELECT id FROM site_settings ORDER BY id ASC LIMIT 1');
     let res;
@@ -115,6 +149,7 @@ export async function PUT(request: NextRequest) {
              footer_about = $12,
              footer_copyright = $13,
              primary_color = $14,
+             pages_config = $15::jsonb,
              updated_at = NOW()
          WHERE id = $1
          RETURNING *`,
@@ -133,15 +168,16 @@ export async function PUT(request: NextRequest) {
           body.footer_about || '',
           body.footer_copyright || '',
           body.primary_color || '#ff7f5c',
+          pagesConfigJson,
         ]
       );
     } else {
       res = await pool.query(
         `INSERT INTO site_settings (
            site_name, hotline, address, facebook_url, logo_url, logo_emoji, tagline,
-           top_notice, shipping_badge, navbar_links, footer_about, footer_copyright, primary_color,
+           top_notice, shipping_badge, navbar_links, footer_about, footer_copyright, primary_color, pages_config,
            created_at, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,NOW(),NOW())
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14::jsonb,NOW(),NOW())
          RETURNING *`,
         [
           body.site_name || 'Mèo Cưng',
@@ -157,6 +193,7 @@ export async function PUT(request: NextRequest) {
           body.footer_about || '',
           body.footer_copyright || '',
           body.primary_color || '#ff7f5c',
+          pagesConfigJson,
         ]
       );
     }

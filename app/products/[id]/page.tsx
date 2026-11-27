@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { notFound, useParams } from 'next/navigation';
 import { PRODUCTS } from '@/lib/products';
 import { useCart } from '@/context/CartContext';
@@ -13,6 +13,25 @@ export default function ProductDetailPage() {
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [pageCfg, setPageCfg] = useState({
+    in_stock_text: 'Còn hàng',
+    add_cart_text: 'Thêm vào giỏ hàng',
+    buy_now_text: 'Mua ngay',
+    badge_shipping: 'Giao 2H TP.HCM',
+    badge_authentic: '100% Chính hãng',
+    badge_return: 'Đổi trả 7 ngày',
+  });
+
+  useEffect(() => {
+    fetch('/api/admin/site-settings', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.settings?.pages_config?.product_detail) {
+          setPageCfg(d.settings.pages_config.product_detail);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   if (!product) {
     notFound();
@@ -66,7 +85,7 @@ export default function ProductDetailPage() {
               <span>•</span>
               <span>Đã bán {product.soldCount} lượt</span>
               <span>•</span>
-              <span className="text-emerald-600 font-semibold">Còn hàng</span>
+              <span className="text-emerald-600 font-semibold">{pageCfg.in_stock_text}</span>
             </div>
 
             {/* Price */}
@@ -126,7 +145,7 @@ export default function ProductDetailPage() {
                 ) : (
                   <>
                     <ShoppingCart className="w-4 h-4" />
-                    <span>Thêm vào giỏ hàng</span>
+                    <span>{pageCfg.add_cart_text}</span>
                   </>
                 )}
               </button>
@@ -136,7 +155,7 @@ export default function ProductDetailPage() {
                 onClick={() => addToCart(product, quantity)}
                 className="py-3.5 px-6 rounded-full bg-gray-900 hover:bg-black text-white font-bold text-sm flex items-center justify-center gap-2 transition"
               >
-                <span>Mua ngay</span>
+                <span>{pageCfg.buy_now_text}</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -145,15 +164,15 @@ export default function ProductDetailPage() {
             <div className="grid grid-cols-3 gap-2 pt-2 text-[11px] text-gray-500 text-center">
               <div className="flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50">
                 <Truck className="w-4 h-4 text-[#ff7f5c]" />
-                <span>Giao 2H TP.HCM</span>
+                <span>{pageCfg.badge_shipping}</span>
               </div>
               <div className="flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50">
                 <ShieldCheck className="w-4 h-4 text-[#ff7f5c]" />
-                <span>100% Chính hãng</span>
+                <span>{pageCfg.badge_authentic}</span>
               </div>
               <div className="flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50">
                 <RotateCcw className="w-4 h-4 text-[#ff7f5c]" />
-                <span>Đổi trả 7 ngày</span>
+                <span>{pageCfg.badge_return}</span>
               </div>
             </div>
           </div>
