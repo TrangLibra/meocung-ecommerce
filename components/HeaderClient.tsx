@@ -9,6 +9,7 @@ import {
   Phone,
   Search,
   ShoppingCart,
+  Package,
   Menu,
   Sparkles,
   Truck,
@@ -272,6 +273,14 @@ export default function HeaderClient() {
                     >
                       <ShoppingCart className="w-4 h-4" />
                       <span>Giỏ hàng của tôi ({totalItems})</span>
+                    </Link>
+                    <Link
+                      href="/orders"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-orange-50 hover:text-[#ff7f5c] transition"
+                    >
+                      <Package className="w-4 h-4" />
+                      <span>Trạng thái đơn hàng</span>
                     </Link>
                     <button
                       type="button"

@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
+import { setSessionCookie } from '@/lib/auth';
 import {
-  findUserByEmailAsync,
-  setSessionCookie,
-  toPublicUser,
-  verifyPassword,
-} from '@/lib/auth';
+  authenticateNeonUser,
+  neonCustomerToPublicUser,
+} from '@/lib/neon-users';
 
 export async function POST(request: Request) {
   try {
@@ -19,15 +18,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await findUserByEmailAsync(email);
-    if (!user || !verifyPassword(password, user.passwordHash)) {
+    const result = await authenticateNeonUser(email, password);
+    if (!result.ok) {
       return NextResponse.json(
-        { error: 'Email hoặc mật khẩu không chính xác.' },
-        { status: 401 }
+        { error: result.error },
+        { status: result.status }
       );
     }
 
-    const publicUser = toPublicUser(user);
+    const publicUser = neonCustomerToPublicUser(result.user);
     setSessionCookie(publicUser);
 
     return NextResponse.json({ user: publicUser });
