@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { Pool } from 'pg';
 import { hashPassword, verifyPassword, type PublicUser } from './auth';
 
@@ -19,7 +18,7 @@ export interface NeonCustomer {
 
 const globalForPg = globalThis as unknown as {
   __meocungNeonPool?: Pool;
-  __meocungUserTableReady?: boolean;
+  __meocungUsersTableReady?: boolean;
 };
 
 function getPool(): Pool {
@@ -34,39 +33,29 @@ function getPool(): Pool {
 }
 
 async function ensureTable(): Promise<void> {
-  if (globalForPg.__meocungUserTableReady) return;
+  if (globalForPg.__meocungUsersTableReady) return;
   const pool = getPool();
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS "storefront_user" (
-      "id" text NOT NULL,
-      "name" text NOT NULL,
-      "email" text NOT NULL,
-      "phone" text NULL,
-      "password_hash" text NOT NULL,
-      "status" text CHECK ("status" IN ('active', 'blocked')) NOT NULL DEFAULT 'active',
-      "source" text NOT NULL DEFAULT 'meocung-ecommerce',
-      "last_login_at" timestamptz NULL,
-      "created_at" timestamptz NOT NULL DEFAULT now(),
-      "updated_at" timestamptz NOT NULL DEFAULT now(),
-      "deleted_at" timestamptz NULL,
-      CONSTRAINT "storefront_user_pkey" PRIMARY KEY ("id")
-    );
-  `);
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_storefront_user_email_unique"
-    ON "storefront_user" ("email") WHERE "deleted_at" IS NULL;
-  `);
-  globalForPg.__meocungUserTableReady = true;
+  await pool.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "name" text NULL;`);
+  await pool.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" text NULL;`);
+  await pool.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "status" text NOT NULL DEFAULT 'active';`);
+  await pool.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "last_login_at" timestamptz NULL;`);
+  globalForPg.__meocungUsersTableReady = true;
+}
+
+function splitHash(combined: string): { salt: string; hash: string } {
+  const idx = combined.indexOf(':');
+  if (idx === -1) return { salt: '', hash: combined };
+  return { salt: combined.slice(0, idx), hash: combined.slice(idx + 1) };
 }
 
 function mapRowToCustomer(row: any): NeonCustomer {
   return {
     id: String(row.id),
-    name: String(row.name),
+    name: row.name ? String(row.name) : String(row.email || '').split('@')[0] || 'Khách hàng',
     email: String(row.email),
     phone: row.phone ? String(row.phone) : null,
     status: row.status === 'blocked' ? 'blocked' : 'active',
-    source: row.source ? String(row.source) : 'meocung-ecommerce',
+    source: row.role ? String(row.role) : 'customer',
     last_login_at: row.last_login_at ? new Date(row.last_login_at).toISOString() : null,
     created_at: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
     updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
@@ -83,18 +72,22 @@ export function neonCustomerToPublicUser(c: NeonCustomer): PublicUser {
   };
 }
 
-export async function findNeonUserByEmail(email: string): Promise<(NeonCustomer & { password_hash: string }) | null> {
+export async function findNeonUserByEmail(
+  email: string
+): Promise<(NeonCustomer & { password_hash: string }) | null> {
   await ensureTable();
   const pool = getPool();
   const normalized = email.trim().toLowerCase();
   const { rows } = await pool.query(
-    `SELECT * FROM "storefront_user" WHERE LOWER("email") = $1 AND "deleted_at" IS NULL LIMIT 1`,
+    `SELECT * FROM "users" WHERE LOWER("email") = $1 LIMIT 1`,
     [normalized]
   );
   if (!rows[0]) return null;
+  const salt = rows[0].salt ? String(rows[0].salt) : '';
+  const hash = rows[0].hash ? String(rows[0].hash) : '';
   return {
     ...mapRowToCustomer(rows[0]),
-    password_hash: String(rows[0].password_hash),
+    password_hash: salt && hash ? `${salt}:${hash}` : hash,
   };
 }
 
@@ -115,25 +108,25 @@ export async function createNeonUser(input: {
     throw new Error('EMAIL_ALREADY_EXISTS');
   }
 
-  const passwordHash =
+  const combined =
     input.passwordHash || (input.password ? hashPassword(input.password) : '');
-  if (!passwordHash) {
+  if (!combined) {
     throw new Error('PASSWORD_REQUIRED');
   }
 
-  const id = `sfu_${crypto.randomUUID().replace(/-/g, '')}`;
+  const { salt, hash } = splitHash(combined);
   const { rows } = await pool.query(
-    `INSERT INTO "storefront_user" ("id", "name", "email", "phone", "password_hash", "status", "source", "created_at", "updated_at")
+    `INSERT INTO "users" ("name", "email", "phone", "salt", "hash", "status", "role", "created_at", "updated_at")
      VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())
      RETURNING *`,
     [
-      id,
       input.name.trim(),
       normalizedEmail,
       input.phone?.trim() || null,
-      passwordHash,
+      salt,
+      hash,
       input.status === 'blocked' ? 'blocked' : 'active',
-      input.source || 'meocung-ecommerce',
+      'customer',
     ]
   );
   return mapRowToCustomer(rows[0]);
@@ -163,8 +156,8 @@ export async function authenticateNeonUser(
 
   const pool = getPool();
   const { rows } = await pool.query(
-    `UPDATE "storefront_user" SET "last_login_at" = now(), "updated_at" = now() WHERE "id" = $1 RETURNING *`,
-    [user.id]
+    `UPDATE "users" SET "last_login_at" = now(), "updated_at" = now() WHERE "id" = $1 RETURNING *`,
+    [Number(user.id)]
   );
   return { ok: true, user: mapRowToCustomer(rows[0] || user) };
 }
@@ -176,7 +169,7 @@ export async function listNeonUsers(options?: {
   await ensureTable();
   const pool = getPool();
   const params: unknown[] = [];
-  const where: string[] = ['"deleted_at" IS NULL'];
+  const where: string[] = ['1=1'];
 
   if (options?.status === 'active' || options?.status === 'blocked') {
     params.push(options.status);
@@ -187,12 +180,12 @@ export async function listNeonUsers(options?: {
     params.push(`%${options.q.trim().toLowerCase()}%`);
     const idx = params.length;
     where.push(
-      `(LOWER("name") LIKE $${idx} OR LOWER("email") LIKE $${idx} OR LOWER(COALESCE("phone", '')) LIKE $${idx})`
+      `(LOWER(COALESCE("name", '')) LIKE $${idx} OR LOWER("email") LIKE $${idx} OR LOWER(COALESCE("phone", '')) LIKE $${idx})`
     );
   }
 
   const { rows } = await pool.query(
-    `SELECT * FROM "storefront_user" WHERE ${where.join(' AND ')} ORDER BY "created_at" DESC LIMIT 200`,
+    `SELECT * FROM "users" WHERE ${where.join(' AND ')} ORDER BY "created_at" DESC LIMIT 200`,
     params
   );
   return rows.map(mapRowToCustomer);
@@ -222,7 +215,7 @@ export async function updateNeonUser(
   if (typeof input.email === 'string' && input.email.trim()) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const existing = await findNeonUserByEmail(normalizedEmail);
-    if (existing && existing.id !== id) {
+    if (existing && existing.id !== String(id)) {
       throw new Error('EMAIL_ALREADY_EXISTS');
     }
     params.push(normalizedEmail);
@@ -240,13 +233,16 @@ export async function updateNeonUser(
   }
 
   if (typeof input.password === 'string' && input.password.length >= 6) {
-    params.push(hashPassword(input.password));
-    sets.push(`"password_hash" = $${params.length}`);
+    const { salt, hash } = splitHash(hashPassword(input.password));
+    params.push(salt);
+    sets.push(`"salt" = $${params.length}`);
+    params.push(hash);
+    sets.push(`"hash" = $${params.length}`);
   }
 
-  params.push(id);
+  params.push(Number(id));
   const { rows } = await pool.query(
-    `UPDATE "storefront_user" SET ${sets.join(', ')} WHERE "id" = $${params.length} AND "deleted_at" IS NULL RETURNING *`,
+    `UPDATE "users" SET ${sets.join(', ')} WHERE "id" = $${params.length} RETURNING *`,
     params
   );
   return rows[0] ? mapRowToCustomer(rows[0]) : null;
@@ -256,8 +252,8 @@ export async function deleteNeonUser(id: string): Promise<boolean> {
   await ensureTable();
   const pool = getPool();
   const { rowCount } = await pool.query(
-    `DELETE FROM "storefront_user" WHERE "id" = $1`,
-    [id]
+    `DELETE FROM "users" WHERE "id" = $1`,
+    [Number(id)]
   );
   return (rowCount || 0) > 0;
 }
