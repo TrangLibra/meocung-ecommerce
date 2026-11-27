@@ -219,3 +219,45 @@ export async function listNeonOrdersByCustomer(user: {
   );
   return rows.map(mapRowToOrder);
 }
+
+export async function cancelNeonOrderByCustomer(
+  orderId: string,
+  user: { id?: string; email?: string }
+): Promise<{ ok: true; order: NeonOrder } | { ok: false; status: number; error: string }> {
+  await ensureOrderTable();
+  const pool = getPool();
+  const email = (user.email || '').trim().toLowerCase();
+  const userId = user.id ? String(user.id) : '';
+
+  const { rows } = await pool.query(
+    `SELECT * FROM "orders" WHERE "id" = $1 LIMIT 1`,
+    [Number(orderId)]
+  );
+  const existing = rows[0];
+  if (!existing) {
+    return { ok: false, status: 404, error: 'Không tìm thấy đơn hàng.' };
+  }
+
+  const ownsOrder =
+    (userId && existing.user_id && String(existing.user_id) === userId) ||
+    (email && existing.customer_email && String(existing.customer_email).toLowerCase() === email);
+
+  if (!ownsOrder) {
+    return { ok: false, status: 403, error: 'Bạn không có quyền hủy đơn hàng này.' };
+  }
+
+  const currentStatus = String(existing.order_status || 'pending');
+  if (currentStatus !== 'pending' && currentStatus !== 'confirmed') {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Chỉ có thể hủy đơn hàng ở trạng thái Chờ xác nhận hoặc Đã xác nhận.',
+    };
+  }
+
+  const updated = await pool.query(
+    `UPDATE "orders" SET "order_status" = 'cancelled', "updated_at" = now() WHERE "id" = $1 RETURNING *`,
+    [Number(orderId)]
+  );
+  return { ok: true, order: mapRowToOrder(updated.rows[0]) };
+}

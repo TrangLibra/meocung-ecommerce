@@ -74,6 +74,33 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const handleCancelOrder = async (order: CustomerOrder) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng #${order.order_code}?`)) {
+      return;
+    }
+    setCancellingId(order.id);
+    setError('');
+    try {
+      const res = await fetch(`/api/orders/${order.id}/cancel`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Không thể hủy đơn hàng.');
+      } else {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === order.id ? { ...o, status: 'cancelled' } : o))
+        );
+        setActiveTab('cancelled');
+      }
+    } catch {
+      setError('Lỗi kết nối khi hủy đơn hàng.');
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -266,11 +293,24 @@ export default function OrdersPage() {
                     )}
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <p className="text-[11px] text-gray-400">Tổng thanh toán</p>
-                    <p className="text-lg font-extrabold text-[#ff7f5c]">
-                      {Number(order.grand_total || 0).toLocaleString('vi-VN')} ₫
-                    </p>
+                  <div className="text-right shrink-0 space-y-2">
+                    <div>
+                      <p className="text-[11px] text-gray-400">Tổng thanh toán</p>
+                      <p className="text-lg font-extrabold text-[#ff7f5c]">
+                        {Number(order.grand_total || 0).toLocaleString('vi-VN')} ₫
+                      </p>
+                    </div>
+                    {(order.status === 'pending' || order.status === 'confirmed') && (
+                      <button
+                        type="button"
+                        disabled={cancellingId === order.id}
+                        onClick={() => handleCancelOrder(order)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold transition disabled:opacity-50"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        <span>{cancellingId === order.id ? 'Đang hủy...' : 'Hủy đơn hàng'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
