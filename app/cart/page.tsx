@@ -106,8 +106,14 @@ export default function CartPage() {
         )}
         <div className="pt-4 flex justify-center gap-3">
           <Link
-            href="/products"
+            href="/orders"
             className="px-6 py-3 rounded-full bg-[#ff7f5c] text-white font-bold text-xs hover:bg-[#f0643d] transition"
+          >
+            Xem trạng thái đơn hàng
+          </Link>
+          <Link
+            href="/products"
+            className="px-6 py-3 rounded-full bg-orange-50 text-[#ff7f5c] border border-orange-200 font-bold text-xs hover:bg-orange-100 transition"
           >
             Tiếp tục mua sắm
           </Link>
