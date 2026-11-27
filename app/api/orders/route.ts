@@ -1,7 +1,29 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { sendOrderConfirmationEmail, OrderEmailItem } from '@/lib/email';
-import { createNeonOrder } from '@/lib/neon-orders';
+import { createNeonOrder, listNeonOrdersByCustomer } from '@/lib/neon-orders';
+
+export async function GET() {
+  const sessionUser = getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json(
+      { error: 'Vui lòng đăng nhập để xem đơn hàng.' },
+      { status: 401 }
+    );
+  }
+  try {
+    const orders = await listNeonOrdersByCustomer({
+      id: sessionUser.id,
+      email: sessionUser.email,
+    });
+    return NextResponse.json({ orders, count: orders.length });
+  } catch {
+    return NextResponse.json(
+      { error: 'Không thể tải danh sách đơn hàng.' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: Request) {
   const sessionUser = getSessionUser();

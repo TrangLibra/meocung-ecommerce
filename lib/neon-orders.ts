@@ -198,3 +198,24 @@ export async function deleteNeonOrder(id: string): Promise<boolean> {
   );
   return (rowCount || 0) > 0;
 }
+
+export async function listNeonOrdersByCustomer(user: {
+  id?: string;
+  email?: string;
+}): Promise<NeonOrder[]> {
+  await ensureOrderTable();
+  const pool = getPool();
+  const email = (user.email || '').trim().toLowerCase();
+  const userId = user.id ? String(user.id) : '';
+  if (!email && !userId) return [];
+
+  const { rows } = await pool.query(
+    `SELECT * FROM "orders"
+     WHERE ($1 <> '' AND "user_id" = $1)
+        OR ($2 <> '' AND LOWER(COALESCE("customer_email", '')) = $2)
+     ORDER BY "created_at" DESC
+     LIMIT 100`,
+    [userId, email]
+  );
+  return rows.map(mapRowToOrder);
+}
