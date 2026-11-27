@@ -26,13 +26,23 @@ async function getHomeHeroConfig() {
   return null;
 }
 
+async function getLiveBanners() {
+  try {
+    const res = await homePool.query('SELECT id, title, image_url, link_url, position FROM banners WHERE is_active = true ORDER BY id DESC');
+    return res.rows || [];
+  } catch (_) {
+    return [];
+  }
+}
+
 export default async function HomePage() {
   // Lấy đồng thời: Nội dung Banner & Cẩm nang từ PayloadCMS + Sản phẩm từ MedusaJS + Cấu hình Trang chủ
-  const [banners, posts, products, homeCfg] = await Promise.all([
+  const [banners, posts, products, homeCfg, liveBanners] = await Promise.all([
     getPayloadBanners(),
     getPayloadPosts(6),
     getMedusaProducts(8),
     getHomeHeroConfig(),
+    getLiveBanners(),
   ]);
 
   const activeBanner = {
@@ -121,6 +131,38 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* 2.5. Banner Quảng Cáo & Slider (Đồng bộ trực tiếp từ Neon DB / PayloadCMS) */}
+      {liveBanners.length > 0 && (
+        <section className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {liveBanners.map((b: any) => (
+              <Link
+                key={b.id}
+                href={b.link_url === '/san-pham' ? '/products' : b.link_url || '/products'}
+                className="group relative h-48 sm:h-56 rounded-2xl overflow-hidden shadow-md border border-gray-100 block"
+              >
+                <img
+                  src={b.image_url}
+                  alt={b.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent flex flex-col justify-end p-5">
+                  <span className="inline-block w-fit px-2.5 py-0.5 rounded-full bg-[#ff7f5c] text-white text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                    Ưu đãi nổi bật
+                  </span>
+                  <h3 className="text-white font-black text-lg sm:text-xl leading-snug drop-shadow">
+                    {b.title}
+                  </h3>
+                  <span className="text-orange-200 text-xs font-semibold mt-1 inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    Xem ngay <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 3. Categories Grid */}
       <section className="space-y-4">
