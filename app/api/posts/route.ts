@@ -90,3 +90,53 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, title, category, summary, coverImage, status } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Post ID is required' }, { status: 400, headers: corsHeaders });
+    }
+
+    const res = await pool.query(
+      `UPDATE posts
+       SET title = COALESCE($2, title),
+           category = COALESCE($3, category),
+           summary = COALESCE($4, summary),
+           cover_image = COALESCE($5, cover_image),
+           status = COALESCE($6, status),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, title, slug, category, summary, cover_image as "coverImage", status, published_at as "publishedAt"`,
+      [id, title || null, category || null, summary !== undefined ? summary : null, coverImage || null, status || null]
+    );
+
+    if (res.rows.length === 0) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404, headers: corsHeaders });
+    }
+
+    return NextResponse.json({ success: true, doc: res.rows[0] }, { headers: corsHeaders });
+  } catch (err: any) {
+    console.error('Error updating post in PostgreSQL:', err);
+    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Post ID is required' }, { status: 400, headers: corsHeaders });
+    }
+
+    await pool.query('DELETE FROM posts WHERE id = $1', [id]);
+    return NextResponse.json({ success: true }, { headers: corsHeaders });
+  } catch (err: any) {
+    console.error('Error deleting post in PostgreSQL:', err);
+    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
+  }
+}
