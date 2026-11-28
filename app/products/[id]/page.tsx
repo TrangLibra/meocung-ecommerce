@@ -6,6 +6,7 @@ import { PRODUCTS, type Product } from '@/lib/products';
 import { useCart } from '@/context/CartContext';
 import { getProductDiscount, useActiveVouchers } from '@/lib/useActiveVouchers';
 import Link from 'next/link';
+import ProductCard from '@/components/ProductCard';
 import { ShoppingCart, Star, ShieldCheck, Truck, RotateCcw, Phone, Check, ArrowRight } from 'lucide-react';
 
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
@@ -49,6 +50,16 @@ function mapNeonToProduct(found: any): Product {
       `Tồn kho: ${found.inventory ?? 50} sản phẩm`,
     ],
   };
+}
+
+function extractWeightBadge(weight?: string, description?: string): string {
+  const w = (weight || '').trim();
+  if (w && !SIZE_ORDER.includes(w.toUpperCase()) && !/^size\s+/i.test(w)) {
+    return w;
+  }
+  const desc = description || '';
+  const m = desc.match(/(?:trên\s+\d+(?:\.\d+)?\s*(?:kg|g|l|ml)|\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?\s*(?:kg|g|l|ml)|\d+(?:\.\d+)?\s*(?:kg|g|l|ml))/i);
+  return m ? m[0].trim() : '';
 }
 
 export default function ProductDetailPage() {
@@ -215,6 +226,7 @@ export default function ProductDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   {sizeVariants.map((v) => {
                     const isSelected = v.product.id === product.id;
+                    const weightBadge = extractWeightBadge(v.product.weight, v.product.description);
                     return (
                       <button
                         key={v.product.id}
@@ -226,17 +238,13 @@ export default function ProductDetailPage() {
                             : 'bg-white text-gray-700 border-gray-200 hover:border-[#ff7f5c]'
                         }`}
                       >
-                        {v.size} • {v.product.price.toLocaleString('vi-VN')}₫
+                        {v.size}{weightBadge && weightBadge.toLowerCase() !== v.size.toLowerCase() ? ` • ${weightBadge}` : ''}
                       </button>
                     );
                   })}
                 </div>
               </div>
             )}
-
-            <p className="text-sm text-gray-600 leading-relaxed">
-              {product.description}
-            </p>
 
             {product.weight && (
               <div className="text-xs text-gray-500">
@@ -312,6 +320,49 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Mô Tả Chi Tiết Sản Phẩm */}
+      <section className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 space-y-4">
+        <h2 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2">
+          <span>📝</span>
+          <span>Mô Tả Chi Tiết Sản Phẩm</span>
+        </h2>
+        <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+          {product.description || `Sản phẩm ${product.name} chính hãng tại Mèo Cưng Pet Shop, đảm bảo chất lượng an toàn cho thú cưng của bạn.`}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-gray-100 text-xs text-gray-600">
+          <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+            <span className="font-bold text-gray-800 block mb-0.5">Danh mục</span>
+            {product.categoryName}
+          </div>
+          <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+            <span className="font-bold text-gray-800 block mb-0.5">Quy cách / Size</span>
+            {product.weight || 'Tiêu chuẩn'}
+          </div>
+          <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+            <span className="font-bold text-gray-800 block mb-0.5">Cam kết</span>
+            100% Chính hãng • Đổi trả trong 7 ngày
+          </div>
+        </div>
+      </section>
+
+      {/* Các Sản Phẩm Nổi Bật */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2">
+            <span>✨</span>
+            <span>Các Sản Phẩm Nổi Bật</span>
+          </h2>
+          <Link href="/products" className="text-xs font-bold text-[#ff7f5c] hover:underline">
+            Xem tất cả →
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          {(related.length >= 4 ? related : PRODUCTS.filter((p) => p.id !== product.id).slice(0, 4)).map((item) => (
+            <ProductCard key={item.id} product={item} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
