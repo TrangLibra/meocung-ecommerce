@@ -13,6 +13,7 @@ export interface NeonProduct {
   price: number;
   cost_price: number;
   weight: string;
+  actual_weight?: string;
   inventory: number;
   vendor: string;
   status: string;
@@ -80,6 +81,7 @@ function mapProductRow(r: any): NeonProduct {
     price: Number(meta.price) || 0,
     cost_price: Number(meta.cost_price) || 0,
     weight: String(meta.weight || (r.weight ? `${r.weight}` : '')),
+    actual_weight: String(meta.actual_weight || ''),
     inventory: Number(meta.inventory ?? 50),
     vendor: String(meta.vendor || 'Mèo Cưng Official'),
     status: String(r.status || 'published'),
@@ -133,6 +135,7 @@ export async function upsertNeonProduct(input: Partial<NeonProduct> & { name: st
     cost_price: costPrice,
     inventory,
     weight: input.weight || '',
+    actual_weight: input.actual_weight || '',
     category,
     category_name: categoryName,
     vendor,
