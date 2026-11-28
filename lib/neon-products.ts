@@ -238,10 +238,33 @@ export async function listNeonProducts(): Promise<NeonProduct[]> {
   return rows.map(mapRow);
 }
 
+function toSlugHandle(name: string, id: string): string {
+  const base = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const suffix = id.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toLowerCase();
+  return `${base || 'san-pham'}-${suffix}`;
+}
+
 export async function upsertNeonProduct(input: Partial<NeonProduct> & { name: string }): Promise<NeonProduct> {
   await ensureProductTable();
   const pool = getPool();
   const id = input.id || `prod_${Date.now()}`;
+  const price = Math.max(0, Math.round(Number(input.price) || 0));
+  const costPrice = Math.max(0, Math.round(Number(input.cost_price) || 0));
+  const inventory = Math.max(0, Math.round(Number(input.inventory) || 0));
+  const status = input.status || 'published';
+  const category = input.category || 'thuc-an-hat';
+  const categoryName = input.category_name || 'Thức ăn hạt dinh dưỡng';
+  const vendor = input.vendor || 'Mèo Cưng Official';
+  const image = input.image || '';
+  const description = input.description || '';
+
   const { rows } = await pool.query(
     `INSERT INTO "storefront_product" (
       "id","sku","name","name_en","category","category_name","price","cost_price","weight","inventory",
@@ -264,24 +287,55 @@ export async function upsertNeonProduct(input: Partial<NeonProduct> & { name: st
       input.sku || '',
       input.name,
       input.name_en || input.name,
-      input.category || 'thuc-an-hat',
-      input.category_name || 'Thức ăn hạt dinh dưỡng',
-      Math.max(0, Math.round(Number(input.price) || 0)),
-      Math.max(0, Math.round(Number(input.cost_price) || 0)),
+      category,
+      categoryName,
+      price,
+      costPrice,
       input.weight || '',
-      Math.max(0, Math.round(Number(input.inventory) || 0)),
-      input.vendor || 'Mèo Cưng Official',
-      input.status || 'published',
+      inventory,
+      vendor,
+      status,
       input.publish_date || null,
       input.expiry_date || null,
       JSON.stringify(Array.isArray(input.channels) ? input.channels : ['Web Storefront']),
       JSON.stringify(input.attributes || {}),
       JSON.stringify(input.public_meta || {}),
       JSON.stringify(input.private_meta || {}),
-      input.image || '',
-      input.description || '',
+      image,
+      description,
     ]
   );
+
+  // Sync to Medusa public.product table in Neon so it shows up directly in Neon Console
+  try {
+    const handle = toSlugHandle(input.name, id);
+    const meta = {
+      sku: input.sku || '',
+      price,
+      cost_price: costPrice,
+      inventory,
+      weight: input.weight || '',
+      category,
+      vendor,
+      expiry_date: input.expiry_date || null,
+    };
+    await pool.query(
+      `INSERT INTO "product" ("id", "title", "handle", "subtitle", "description", "status", "thumbnail", "metadata", "created_at", "updated_at")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, now(), now())
+       ON CONFLICT ("id") DO UPDATE SET
+         "title" = EXCLUDED."title",
+         "subtitle" = EXCLUDED."subtitle",
+         "description" = EXCLUDED."description",
+         "status" = EXCLUDED."status",
+         "thumbnail" = EXCLUDED."thumbnail",
+         "metadata" = EXCLUDED."metadata",
+         "updated_at" = now()`,
+      [id, input.name, handle, categoryName, description, status, image || null, JSON.stringify(meta)]
+    );
+  } catch (syncErr) {
+    console.warn('[neon-products] sync to public.product skipped:', syncErr);
+  }
+
   return mapRow(rows[0]);
 }
 
@@ -289,6 +343,69 @@ export async function deleteNeonProduct(id: string): Promise<boolean> {
   await ensureProductTable();
   const pool = getPool();
   const { rowCount } = await pool.query(`DELETE FROM "storefront_product" WHERE "id" = $1`, [id]);
+  try {
+    await pool.query(`DELETE FROM "product" WHERE "id" = $1`, [id]);
+  } catch (syncErr) {
+    console.warn('[neon-products] delete from public.product skipped:', syncErr);
+  }
+  return (rowCount || 0) > 0;
+}
+
+export interface NeonCategory {
+  id: string;
+  name: string;
+  handle: string;
+  description: string;
+  is_active: boolean;
+}
+
+export async function listNeonCategories(): Promise<NeonCategory[]> {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT "id", "name", "handle", "description", "is_active" FROM "product_category" WHERE "deleted_at" IS NULL ORDER BY "rank" ASC, "created_at" ASC`
+  );
+  return rows.map((r: any) => ({
+    id: String(r.id),
+    name: String(r.name),
+    handle: String(r.handle),
+    description: String(r.description || ''),
+    is_active: Boolean(r.is_active),
+  }));
+}
+
+export async function createNeonCategory(input: { name: string; description?: string }): Promise<NeonCategory> {
+  const pool = getPool();
+  const handle = input.name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || `danh-muc-${Date.now()}`;
+  const cleanSlug = handle.replace(/-/g, '').slice(0, 14);
+  const id = `pcat_${cleanSlug}${Date.now().toString().slice(-4)}`;
+  const mpath = `${id}.`;
+  const { rows } = await pool.query(
+    `INSERT INTO "product_category" ("id", "name", "description", "handle", "mpath", "is_active", "is_internal", "rank", "created_at", "updated_at")
+     VALUES ($1, $2, $3, $4, $5, true, false, 0, now(), now())
+     ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name", "description" = EXCLUDED."description", "updated_at" = now()
+     RETURNING "id", "name", "handle", "description", "is_active"`,
+    [id, input.name.trim(), input.description || '', handle, mpath]
+  );
+  const r = rows[0];
+  return {
+    id: String(r.id),
+    name: String(r.name),
+    handle: String(r.handle),
+    description: String(r.description || ''),
+    is_active: Boolean(r.is_active),
+  };
+}
+
+export async function deleteNeonCategory(id: string): Promise<boolean> {
+  const pool = getPool();
+  const { rowCount } = await pool.query(`DELETE FROM "product_category" WHERE "id" = $1`, [id]);
   return (rowCount || 0) > 0;
 }
 

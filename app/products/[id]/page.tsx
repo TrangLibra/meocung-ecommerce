@@ -1,23 +1,130 @@
 'use client';
 
-import React, { useState } from 'react';
-import { notFound, useParams } from 'next/navigation';
-import { PRODUCTS } from '@/lib/products';
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { PRODUCTS, type Product } from '@/lib/products';
 import { useCart } from '@/context/CartContext';
 import { getProductDiscount, useActiveVouchers } from '@/lib/useActiveVouchers';
 import Link from 'next/link';
 import { ShoppingCart, Star, ShieldCheck, Truck, RotateCcw, Phone, Check, ArrowRight } from 'lucide-react';
 
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
+function getBaseProductName(name: string): string {
+  return name.replace(/\s*\(\s*Size\s+[A-Za-z0-9]+\s*\)\s*$/i, '').trim().toLowerCase();
+}
+
+function extractSizeLabel(name: string, weight?: string): string {
+  const m = name.match(/\(\s*Size\s+([A-Za-z0-9]+)\s*\)/i);
+  if (m) return m[1].toUpperCase();
+  const w = (weight || '').trim().toUpperCase();
+  if (SIZE_ORDER.includes(w)) return w;
+  return weight || 'Tiêu chuẩn';
+}
+
+function mapNeonToProduct(found: any): Product {
+  return {
+    id: String(found.id),
+    name: String(found.name || 'Sản phẩm Mèo Cưng'),
+    categorySlug: String(found.category || 'thuc-an-hat'),
+    categoryName: String(found.category_name || 'Sản phẩm Mèo Cưng'),
+    price: Number(found.price) || 0,
+    originalPrice: Number(found.price) || 0,
+    weight: String(found.weight || '1kg'),
+    image: String(found.image || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&auto=format&fit=crop&q=80'),
+    description: String(found.description || ''),
+    rating: 5,
+    reviews: 12,
+    sold: 25,
+    inStock: (Number(found.inventory) || 0) > 0,
+    tag: found.sku || undefined,
+    specs: [
+      `Mã SKU: ${found.sku || found.id}`,
+      `Quy cách / Size: ${found.weight || 'Tiêu chuẩn'}`,
+      `Tồn kho: ${found.inventory ?? 50} sản phẩm`,
+    ],
+  };
+}
+
 export default function ProductDetailPage() {
   const params = useParams();
-  const product = PRODUCTS.find((p) => p.id === params.id);
+  const idStr = String(params?.id || '');
+  const staticProduct = PRODUCTS.find((p) => p.id === idStr) || null;
+  const [product, setProduct] = useState<Product | null>(staticProduct);
+  const [sizeVariants, setSizeVariants] = useState<{ size: string; product: Product }[]>([]);
+  const [loading, setLoading] = useState(!staticProduct);
   const { addToCart } = useCart();
   const vouchers = useActiveVouchers();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
+  useEffect(() => {
+    if (staticProduct) {
+      setProduct(staticProduct);
+      setSizeVariants([]);
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    fetch('/api/admin/products')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!active) return;
+        const list = Array.isArray(data?.products) ? data.products : [];
+        const found = list.find((p: any) => String(p.id) === idStr);
+        if (found) {
+          const mapped = mapNeonToProduct(found);
+          setProduct(mapped);
+          const baseName = getBaseProductName(mapped.name);
+          const siblings = list
+            .filter((item: any) => getBaseProductName(String(item.name || '')) === baseName)
+            .map((item: any) => {
+              const p = mapNeonToProduct(item);
+              return { size: extractSizeLabel(p.name, p.weight), product: p };
+            })
+            .sort((a: { size: string }, b: { size: string }) => {
+              const ia = SIZE_ORDER.indexOf(a.size);
+              const ib = SIZE_ORDER.indexOf(b.size);
+              return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+            });
+          setSizeVariants(siblings.length > 1 ? siblings : []);
+        } else {
+          setProduct(null);
+          setSizeVariants([]);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setProduct(null);
+          setSizeVariants([]);
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [idStr, staticProduct]);
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center text-sm text-gray-500 font-medium">
+        Đang tải thông tin sản phẩm...
+      </div>
+    );
+  }
+
   if (!product) {
-    notFound();
+    return (
+      <div className="py-20 text-center space-y-4">
+        <p className="text-lg font-bold text-gray-800">Không tìm thấy sản phẩm này</p>
+        <Link href="/products" className="inline-block px-5 py-2.5 rounded-full bg-[#ff7f5c] text-white text-sm font-bold">
+          Xem tất cả sản phẩm
+        </Link>
+      </div>
+    );
   }
 
   const { finalPrice, originalPrice, discountPercent, voucherCode } = getProductDiscount(
@@ -92,6 +199,33 @@ export default function ProductDetailPage() {
                 </>
               )}
             </div>
+
+            {sizeVariants.length > 1 && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                  Chọn phân loại / Size:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {sizeVariants.map((v) => {
+                    const isSelected = v.product.id === product.id;
+                    return (
+                      <button
+                        key={v.product.id}
+                        type="button"
+                        onClick={() => setProduct(v.product)}
+                        className={`px-4 py-2 rounded-xl text-xs font-extrabold border-2 transition-all ${
+                          isSelected
+                            ? 'bg-[#ff7f5c] text-white border-[#ff7f5c] shadow-sm'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-[#ff7f5c]'
+                        }`}
+                      >
+                        Size {v.size} • {v.product.price.toLocaleString('vi-VN')}₫
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <p className="text-sm text-gray-600 leading-relaxed">
               {product.description}
