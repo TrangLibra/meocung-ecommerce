@@ -11,15 +11,20 @@ import { ShoppingCart, Star, ShieldCheck, Truck, RotateCcw, Phone, Check, ArrowR
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 function getBaseProductName(name: string): string {
-  return name.replace(/\s*\(\s*Size\s+[A-Za-z0-9]+\s*\)\s*$/i, '').trim().toLowerCase();
+  return name
+    .replace(/\s*\(\s*(?:Size\s+[A-Za-z0-9]+|\d+(?:\.\d+)?\s*(?:kg|g|l|ml)(?:\s*\([^)]+\))?|Lốc\s+\d+\s+gói|Thùng\s+\d+\s+lon)\s*\)\s*$/i, '')
+    .trim()
+    .toLowerCase();
 }
 
 function extractSizeLabel(name: string, weight?: string): string {
-  const m = name.match(/\(\s*Size\s+([A-Za-z0-9]+)\s*\)/i);
-  if (m) return m[1].toUpperCase();
-  const w = (weight || '').trim().toUpperCase();
-  if (SIZE_ORDER.includes(w)) return w;
-  return weight || 'Tiêu chuẩn';
+  const mSize = name.match(/\(\s*Size\s+([A-Za-z0-9]+)\s*\)/i);
+  if (mSize) return `Size ${mSize[1].toUpperCase()}`;
+  const mWeight = name.match(/\(\s*(\d+(?:\.\d+)?\s*(?:kg|g|l|ml)|Lốc\s+\d+\s+gói|Thùng\s+\d+\s+lon)\s*\)/i);
+  if (mWeight) return mWeight[1];
+  const w = (weight || '').trim();
+  if (SIZE_ORDER.includes(w.toUpperCase())) return `Size ${w.toUpperCase()}`;
+  return w || 'Tiêu chuẩn';
 }
 
 function mapNeonToProduct(found: any): Product {
@@ -203,7 +208,9 @@ export default function ProductDetailPage() {
             {sizeVariants.length > 1 && (
               <div className="space-y-2">
                 <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">
-                  Chọn phân loại / Size:
+                  {['thuc-an-hat', 'pate-cho-meo', 'cat-ve-sinh'].includes(product.categorySlug)
+                    ? 'Chọn khối lượng / quy cách:'
+                    : 'Chọn phân loại / Size:'}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {sizeVariants.map((v) => {
@@ -219,7 +226,7 @@ export default function ProductDetailPage() {
                             : 'bg-white text-gray-700 border-gray-200 hover:border-[#ff7f5c]'
                         }`}
                       >
-                        Size {v.size} • {v.product.price.toLocaleString('vi-VN')}₫
+                        {v.size} • {v.product.price.toLocaleString('vi-VN')}₫
                       </button>
                     );
                   })}
