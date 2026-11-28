@@ -2,19 +2,21 @@
 
 import React, { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { PRODUCTS, CATEGORIES } from '@/lib/products';
+import { CATEGORIES } from '@/lib/products';
+import { useLiveProducts } from '@/lib/useLiveProducts';
 import ProductCard from '@/components/ProductCard';
 import { Sparkles } from 'lucide-react';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
+  const liveProducts = useLiveProducts();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'popular' | 'price-asc' | 'price-desc'>('popular');
 
   const filteredProducts = useMemo(() => {
-    let list = PRODUCTS;
+    let list = liveProducts;
 
     if (query) {
       list = list.filter((p) =>
@@ -36,7 +38,7 @@ function ProductsContent() {
     }
 
     return list;
-  }, [query, selectedCategory, sortBy]);
+  }, [liveProducts, query, selectedCategory, sortBy]);
 
   return (
     <div className="space-y-8">

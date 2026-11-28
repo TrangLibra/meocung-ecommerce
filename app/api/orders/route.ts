@@ -3,6 +3,7 @@ import { getSessionUser } from '@/lib/auth';
 import { sendOrderConfirmationEmail, OrderEmailItem } from '@/lib/email';
 import { createNeonOrder, listNeonOrdersByCustomer } from '@/lib/neon-orders';
 import { saveNeonUserAddress } from '@/lib/neon-users';
+import { adjustNeonProductStock } from '@/lib/neon-products';
 
 export async function GET() {
   const sessionUser = getSessionUser();
@@ -128,6 +129,9 @@ export async function POST(request: Request) {
     address,
     phone,
   }).catch(() => {});
+
+  // Tự động trừ tồn kho sản phẩm trên Neon
+  await adjustNeonProductStock(items, 'deduct').catch(() => {});
 
   let emailSent = false;
   if (email) {

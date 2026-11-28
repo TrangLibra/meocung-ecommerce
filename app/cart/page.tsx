@@ -25,6 +25,7 @@ export default function CartPage() {
   const [orderCode, setOrderCode] = useState('');
   const [emailSent, setEmailSent] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'bank_transfer'>('cod');
 
   useEffect(() => {
     if (user) {
@@ -90,7 +91,10 @@ export default function CartPage() {
           email,
           phone,
           address,
-          note,
+          note:
+            paymentMethod === 'bank_transfer'
+              ? `[Chuyển khoản VietQR] ${note}`.trim()
+              : `[COD] ${note}`.trim(),
           items: cartBreakdown.map((x) => ({
             name: x.item.product.name,
             quantity: x.item.quantity,
@@ -323,6 +327,65 @@ export default function CartPage() {
               />
             </div>
 
+            {/* Payment Method (COD / VietQR) */}
+            <div className="pt-3 border-t border-gray-100 space-y-2.5">
+              <label className="block text-xs font-bold text-gray-700">Phương thức thanh toán</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('cod')}
+                  className={`p-2.5 rounded-xl border text-xs font-bold transition text-left ${
+                    paymentMethod === 'cod'
+                      ? 'border-[#ff7f5c] bg-orange-50 text-[#ff7f5c]'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200'
+                  }`}
+                >
+                  💵 Tiền mặt (COD)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('bank_transfer')}
+                  className={`p-2.5 rounded-xl border text-xs font-bold transition text-left ${
+                    paymentMethod === 'bank_transfer'
+                      ? 'border-[#ff7f5c] bg-orange-50 text-[#ff7f5c]'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200'
+                  }`}
+                >
+                  🏦 Chuyển khoản QR
+                </button>
+              </div>
+
+              {paymentMethod === 'bank_transfer' && (
+                <div className="p-3.5 rounded-2xl bg-orange-50/60 border border-orange-200 space-y-2.5 text-center">
+                  <p className="text-xs font-extrabold text-[#ff7f5c]">
+                    Quét mã VietQR để chuyển khoản tự động
+                  </p>
+                  <img
+                    src={`https://img.vietqr.io/image/MB-0382542737-compact2.png?amount=${grandTotal}&addInfo=${encodeURIComponent(
+                      `MEOCUNG ${phone || user?.phone || ''}`.trim()
+                    )}&accountName=MEO%20CUNG%20PET%20SHOP`}
+                    alt="Mã QR chuyển khoản Mèo Cưng"
+                    className="w-44 h-44 mx-auto rounded-xl border border-orange-200 bg-white p-1.5 shadow-sm"
+                  />
+                  <div className="text-[11px] text-gray-700 space-y-0.5">
+                    <p>
+                      <strong>Ngân hàng:</strong> MB Bank • <strong>STK:</strong>{' '}
+                      <span className="font-mono font-bold text-[#ff7f5c]">0382542737</span>
+                    </p>
+                    <p>
+                      <strong>Số tiền:</strong>{' '}
+                      <span className="font-bold text-[#ff7f5c]">
+                        {grandTotal.toLocaleString('vi-VN')}₫
+                      </span>
+                    </p>
+                    <p className="text-[10px] text-gray-500">
+                      Sau khi chuyển khoản, bấm nút xác nhận đặt hàng bên dưới.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Price Breakdown */}
             <div className="pt-3 border-t border-gray-100 space-y-2 text-xs">
               <div className="flex justify-between text-gray-600">
@@ -378,7 +441,13 @@ export default function CartPage() {
                 disabled={submitting || authLoading}
                 className="w-full py-3.5 rounded-full bg-[#ff7f5c] hover:bg-[#f0643d] disabled:opacity-60 text-white font-bold text-xs transition shadow-md shadow-orange-200 cursor-pointer flex items-center justify-center gap-2"
               >
-                <span>{submitting ? 'Đang gửi đơn hàng...' : 'Xác Nhận Đặt Hàng Hỏa Tốc (COD)'}</span>
+                <span>
+                  {submitting
+                    ? 'Đang gửi đơn hàng...'
+                    : paymentMethod === 'bank_transfer'
+                    ? 'Xác Nhận Đã Chuyển Khoản & Đặt Hàng'
+                    : 'Xác Nhận Đặt Hàng Hỏa Tốc (COD)'}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
