@@ -35,7 +35,7 @@ export default async function HomePage() {
   const [banners, posts, products, homeCfg, liveBanners] = await Promise.all([
     getPayloadBanners(),
     getPayloadPosts(6),
-    getMedusaProducts(8),
+    getMedusaProducts(50),
     getHomeHeroConfig(),
     getLiveBanners(),
   ]);

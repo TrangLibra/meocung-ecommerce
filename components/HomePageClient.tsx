@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CATEGORIES, Product } from '@/lib/products';
 import FeaturedProductsSection from '@/components/FeaturedProductsSection';
+import ProductCard from '@/components/ProductCard';
 import { Sparkles, ArrowRight, BookOpen, Calendar, ChevronRight } from 'lucide-react';
 
 interface HomePageClientProps {
@@ -61,17 +62,22 @@ export default function HomePageClient({
     { id: 'policies', visible: true },
     { id: 'banners', visible: true },
     { id: 'categories', visible: true },
+    { id: 'category_products', visible: true },
     { id: 'products', visible: true },
     { id: 'blog', visible: true },
   ];
-  const sections = Array.isArray(homeCfg?.sections) && homeCfg.sections.length > 0 ? homeCfg.sections : defaultSections;
+  const rawSections = Array.isArray(homeCfg?.sections) && homeCfg.sections.length > 0 ? homeCfg.sections : defaultSections;
+  const sections = rawSections.some((s: any) => s.id === 'category_products')
+    ? rawSections
+    : [...rawSections.slice(0, 4), { id: 'category_products', visible: true }, ...rawSections.slice(4)];
 
-  const policies = [
+  const defaultPolicies = [
     { title: 'Sản phẩm an toàn', subtitle: '100% nguồn gốc rõ ràng', bgColor: '#FAF7CA', icon: '🛡️', href: '/chinh-sach#chinh-hang' },
     { title: 'Chất lượng chính hãng', subtitle: 'Hạt & pate dinh dưỡng cao', bgColor: '#E3FFD3', icon: '✨', href: '/chinh-sach#chinh-hang' },
     { title: 'Đổi trả 7 ngày', subtitle: 'Hoàn tiền nhanh nếu lỗi NSX', bgColor: '#FED5DC', icon: '🎖️', href: '/chinh-sach#doi-tra' },
     { title: 'Giao hàng hoả tốc', subtitle: 'Nhanh chóng trong 2h tại HCM', bgColor: '#E4E7FF', icon: '🚀', href: '/chinh-sach#giao-hang' },
   ];
+  const policies = Array.isArray(homeCfg?.policies) && homeCfg.policies.length === 4 ? homeCfg.policies : defaultPolicies;
 
   const renderSection = (sec: any, idx: number) => {
     if (sec.visible === false) return null;
@@ -193,33 +199,113 @@ export default function HomePageClient({
     if (sec.id === 'categories') {
       return (
         <section key={`sec-categories-${idx}`} className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
               <h2 className="text-xl sm:text-2xl font-black flex items-center gap-2">
-                <span>{homeCfg?.categories_title || 'Danh Mục Nổi Bật'}</span>
+                <span>{homeCfg?.categories_title || 'Khám Phá Danh Mục'}</span>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-orange-100 font-bold" style={{ color: accent }}>
-                  Chọn lọc
+                  {CATEGORIES.length} ngành hàng
                 </span>
               </h2>
-              <p className="text-xs sm:text-sm opacity-70 mt-0.5">Đầy đủ các dòng thức ăn hạt, pate thơm ngon và vật dụng thiết yếu</p>
+              <p className="text-xs sm:text-sm opacity-70 mt-0.5">
+                {homeCfg?.categories_subtitle || 'Đầy đủ các dòng thức ăn hạt, pate thơm ngon, cát vệ sinh và phụ kiện cho mèo'}
+              </p>
             </div>
+            <Link href="/products" className="text-xs font-bold inline-flex items-center gap-1" style={{ color: accent }}>
+              Xem toàn bộ cửa hàng <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-            {CATEGORIES.map((cat) => (
-              <Link
-                key={cat.slug}
-                href={`/collections/${cat.slug}`}
-                className="group p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-lg transition-all duration-200 flex flex-col items-center text-center"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center text-2xl transition-colors duration-200 shadow-sm">
-                  <span>{cat.icon}</span>
-                </div>
-                <h3 className="font-bold text-gray-800 text-sm sm:text-base mt-3 transition">{cat.name}</h3>
-                <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">{cat.desc}</p>
-              </Link>
-            ))}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {CATEGORIES.map((cat) => {
+              const catCount = products.filter((p) => (p.categorySlug || (p as any).category) === cat.slug).length;
+              return (
+                <a
+                  key={cat.slug}
+                  href={`#cat-${cat.slug}`}
+                  className="group relative overflow-hidden p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-3.5"
+                >
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 shadow-sm transition-transform group-hover:scale-110"
+                    style={{ backgroundColor: `${accent}18` }}
+                  >
+                    <span>{cat.icon}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-gray-900 text-sm leading-snug truncate">{cat.name}</h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">{cat.desc}</p>
+                    <span className="inline-block text-[10px] font-bold mt-1" style={{ color: accent }}>
+                      {catCount > 0 ? `${catCount} sản phẩm →` : 'Khám phá →'}
+                    </span>
+                  </div>
+                </a>
+              );
+            })}
           </div>
+        </section>
+      );
+    }
+
+    if (sec.id === 'category_products') {
+      const perCat = Number(homeCfg?.products_per_category || 4);
+      const hideEmpty = Boolean(homeCfg?.hide_empty_categories);
+      return (
+        <section key={`sec-cat-products-${idx}`} className="space-y-8">
+          {CATEGORIES.map((cat) => {
+            const catItems = products
+              .filter((p) => (p.categorySlug || (p as any).category) === cat.slug)
+              .slice(0, perCat);
+            if (hideEmpty && catItems.length === 0) return null;
+
+            return (
+              <div
+                key={cat.slug}
+                id={`cat-${cat.slug}`}
+                className="rounded-3xl border border-gray-100 bg-white/80 backdrop-blur-sm p-5 sm:p-6 shadow-sm space-y-5"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm"
+                      style={{ backgroundColor: `${accent}1a` }}
+                    >
+                      {cat.icon}
+                    </div>
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2">
+                        <span>{cat.name}</span>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                          {catItems.length} SP
+                        </span>
+                      </h2>
+                      <p className="text-xs text-gray-500">{cat.desc}</p>
+                    </div>
+                  </div>
+
+                  <Link
+                    href={`/collections/${cat.slug}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold text-white shadow-sm hover:opacity-90 transition"
+                    style={{ backgroundColor: accent }}
+                  >
+                    <span>Xem tất cả {cat.name}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+
+                {catItems.length > 0 ? (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                    {catItems.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-xs text-gray-400 bg-gray-50/70 rounded-2xl border border-dashed border-gray-200">
+                    Danh mục <strong>{cat.name}</strong> đang được cập nhật thêm sản phẩm mới.
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </section>
       );
     }
@@ -250,9 +336,10 @@ export default function HomePageClient({
     }
 
     if (sec.id === 'blog') {
+      const blogCount = Number(homeCfg?.blog_count || 3);
       return (
-        <section key={`sec-blog-${idx}`} className="space-y-4">
-          <div className="flex items-center justify-between">
+        <section key={`sec-blog-${idx}`} className="space-y-5">
+          <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600 text-xs font-bold mb-1">
                 <BookOpen className="w-3.5 h-3.5" />
@@ -261,6 +348,9 @@ export default function HomePageClient({
               <h2 className="text-xl sm:text-2xl font-black">
                 {homeCfg?.blog_title || 'Kiến Thức & Kinh Nghiệm Nuôi Mèo'}
               </h2>
+              {homeCfg?.blog_subtitle && (
+                <p className="text-xs sm:text-sm opacity-70 mt-0.5">{homeCfg.blog_subtitle}</p>
+              )}
             </div>
 
             <Link href="/tin-tuc" className="inline-flex items-center gap-1 text-sm font-bold transition group" style={{ color: accent }}>
@@ -270,7 +360,7 @@ export default function HomePageClient({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {posts.slice(0, 3).map((post) => (
+            {posts.slice(0, blogCount).map((post) => (
               <article key={post.id} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-200 flex flex-col">
                 <Link href={`/posts/${post.slug}`} className="block relative aspect-[16/10] overflow-hidden bg-gray-100">
                   <img src={post.image || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800'} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" loading="lazy" />
