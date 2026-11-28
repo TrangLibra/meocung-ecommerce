@@ -27,6 +27,8 @@ const DEFAULT_ROLES = [
       customers: { view: true, create: true, edit: true, delete: true },
       posts: { view: true, create: true, edit: true, delete: true },
       theme: { view: true, create: true, edit: true, delete: true },
+      staff: { view: true, create: true, edit: true, delete: true },
+      settings: { view: true, create: true, edit: true, delete: true },
     },
   },
   {

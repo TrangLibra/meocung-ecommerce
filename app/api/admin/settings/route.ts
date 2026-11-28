@@ -30,6 +30,23 @@ const DEFAULT_SETTINGS = {
   bank_account_name: 'MEO CUNG PET SHOP',
   notify_new_order_email: true,
   auto_confirm_order: false,
+  // Cài đặt chi tiết Đặt hàng & Checkout
+  order_prefix: 'MC-',
+  min_order_value: 50000,
+  max_cod_amount: 5000000,
+  auto_cancel_unpaid_hours: 24,
+  allow_guest_checkout: true,
+  // Cài đặt Đóng gói & Vận chuyển mặc định
+  default_shipping_carrier: 'GHN',
+  default_package_weight_g: 500,
+  free_ship_global_threshold: 300000,
+  enable_express_2h: true,
+  // Cài đặt SEO, Bảo trì & Giao diện hệ thống
+  meta_title_suffix: ' | Mèo Cưng Pet Shop',
+  items_per_page: 20,
+  enable_ai_chatbot: true,
+  maintenance_mode: false,
+  maintenance_message: 'Hệ thống đang bảo trì nâng cấp định kỳ, quý khách vui lòng quay lại sau ít phút!',
 };
 
 let tableReady = false;

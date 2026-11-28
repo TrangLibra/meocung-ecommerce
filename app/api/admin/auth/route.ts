@@ -12,9 +12,19 @@ const pool = new Pool({
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, PUT, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, PUT, PATCH, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
+
+let profileColsReady = false;
+async function ensureProfileCols() {
+  if (profileColsReady) return;
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT '';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT '';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title TEXT DEFAULT '';`);
+  profileColsReady = true;
+}
 
 const FULL_PERMISSIONS = {
   products: { view: true, create: true, edit: true, delete: true },
@@ -39,6 +49,7 @@ export async function OPTIONS() {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureProfileCols();
     const body = await request.json();
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
@@ -48,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     const res = await pool.query(
-      `SELECT id, email, role, hash, salt, lock_until FROM users WHERE LOWER(email) = $1 LIMIT 1`,
+      `SELECT id, email, role, hash, salt, lock_until, full_name, phone, avatar_url, job_title FROM users WHERE LOWER(email) = $1 LIMIT 1`,
       [email]
     );
 
@@ -91,6 +102,10 @@ export async function POST(request: NextRequest) {
           email: user.email,
           role: user.role,
           role_name: roleName,
+          full_name: user.full_name || '',
+          phone: user.phone || '',
+          avatar_url: user.avatar_url || '',
+          job_title: user.job_title || '',
           permissions: permissions || FULL_PERMISSIONS,
         },
       },
@@ -133,6 +148,40 @@ export async function PUT(request: NextRequest) {
     ]);
 
     return NextResponse.json({ success: true, message: 'Đổi mật khẩu thành công' }, { headers: corsHeaders });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    await ensureProfileCols();
+    const body = await request.json();
+    const email = String(body.email || '').trim().toLowerCase();
+    if (!email) {
+      return NextResponse.json({ error: 'Thiếu email tài khoản' }, { status: 400, headers: corsHeaders });
+    }
+    const res = await pool.query(
+      `UPDATE users
+       SET full_name = COALESCE($2, full_name),
+           phone = COALESCE($3, phone),
+           avatar_url = COALESCE($4, avatar_url),
+           job_title = COALESCE($5, job_title),
+           updated_at = NOW()
+       WHERE LOWER(email) = $1
+       RETURNING id, email, role, full_name, phone, avatar_url, job_title`,
+      [
+        email,
+        body.full_name !== undefined ? String(body.full_name) : null,
+        body.phone !== undefined ? String(body.phone) : null,
+        body.avatar_url !== undefined ? String(body.avatar_url) : null,
+        body.job_title !== undefined ? String(body.job_title) : null,
+      ]
+    );
+    if (res.rows.length === 0) {
+      return NextResponse.json({ error: 'Không tìm thấy tài khoản' }, { status: 404, headers: corsHeaders });
+    }
+    return NextResponse.json({ success: true, profile: res.rows[0] }, { headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
   }
