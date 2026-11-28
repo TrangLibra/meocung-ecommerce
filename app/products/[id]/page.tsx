@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { PRODUCTS, type Product } from '@/lib/products';
 import { useCart } from '@/context/CartContext';
 import { getProductDiscount, useActiveVouchers } from '@/lib/useActiveVouchers';
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
-import { ShoppingCart, Star, ShieldCheck, Truck, RotateCcw, Phone, Check, ArrowRight } from 'lucide-react';
+import { ShoppingCart, Star, ShieldCheck, Truck, RotateCcw, Phone, Check, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
@@ -73,6 +73,7 @@ export default function ProductDetailPage() {
   const vouchers = useActiveVouchers();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const featuredScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (staticProduct) {
@@ -346,7 +347,7 @@ export default function ProductDetailPage() {
         </div>
       </section>
 
-      {/* Các Sản Phẩm Nổi Bật */}
+      {/* Các Sản Phẩm Nổi Bật (Carousel có nút < > bo tròn mũi tên cam) */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2">
@@ -357,10 +358,35 @@ export default function ProductDetailPage() {
             Xem tất cả →
           </Link>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-          {(related.length >= 4 ? related : PRODUCTS.filter((p) => p.id !== product.id).slice(0, 4)).map((item) => (
-            <ProductCard key={item.id} product={item} />
-          ))}
+        <div className="relative group">
+          <button
+            type="button"
+            aria-label="Sản phẩm trước"
+            onClick={() => featuredScrollRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+            className="absolute -left-3 sm:-left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border-2 border-[#ff7f5c] text-[#ff7f5c] hover:bg-orange-50 shadow-lg flex items-center justify-center transition-transform hover:scale-105 cursor-pointer"
+          >
+            <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+          </button>
+
+          <div
+            ref={featuredScrollRef}
+            className="flex gap-4 sm:gap-5 overflow-x-auto scroll-smooth pb-2 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {PRODUCTS.filter((p) => p.id !== product.id).map((item) => (
+              <div key={item.id} className="w-[220px] sm:w-[250px] shrink-0">
+                <ProductCard product={item} />
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            aria-label="Sản phẩm tiếp theo"
+            onClick={() => featuredScrollRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+            className="absolute -right-3 sm:-right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border-2 border-[#ff7f5c] text-[#ff7f5c] hover:bg-orange-50 shadow-lg flex items-center justify-center transition-transform hover:scale-105 cursor-pointer"
+          >
+            <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+          </button>
         </div>
       </section>
     </div>
