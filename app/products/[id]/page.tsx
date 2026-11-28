@@ -36,7 +36,7 @@ function mapNeonToProduct(found: any): Product {
     categoryName: String(found.category_name || 'Sản phẩm Mèo Cưng'),
     price: Number(found.price) || 0,
     originalPrice: Number(found.price) || 0,
-    weight: String(found.weight || '1kg'),
+    weight: String(found.actual_weight || found.weight || '1kg'),
     image: String(found.image || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=800&auto=format&fit=crop&q=80'),
     description: String(found.description || ''),
     rating: 5,
@@ -52,13 +52,15 @@ function mapNeonToProduct(found: any): Product {
   };
 }
 
-function extractWeightBadge(weight?: string, description?: string): string {
+function extractWeightBadge(actualWeight?: string, weight?: string, description?: string): string {
+  const aw = (actualWeight || '').trim();
+  if (aw) return aw;
   const w = (weight || '').trim();
   if (w && !SIZE_ORDER.includes(w.toUpperCase()) && !/^size\s+/i.test(w)) {
     return w;
   }
   const desc = description || '';
-  const m = desc.match(/(?:trên\s+\d+(?:\.\d+)?\s*(?:kg|g|l|ml)|\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?\s*(?:kg|g|l|ml)|\d+(?:\.\d+)?\s*(?:kg|g|l|ml))/i);
+  const m = desc.match(/(?:trên\s+\d+(?:\.\d+)?\s*(?:kg|g|l|ml)(?![a-zA-ZÀ-ỹ])|\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?\s*(?:kg|g|l|ml)(?![a-zA-ZÀ-ỹ])|\d+(?:\.\d+)?\s*(?:kg|g|l|ml)(?![a-zA-ZÀ-ỹ]))/i);
   return m ? m[0].trim() : '';
 }
 
@@ -217,7 +219,7 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {sizeVariants.length > 1 && (
+            {sizeVariants.length > 1 ? (
               <div className="space-y-2">
                 <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">
                   {['thuc-an-hat', 'pate-cho-meo', 'cat-ve-sinh'].includes(product.categorySlug)
@@ -227,7 +229,7 @@ export default function ProductDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   {sizeVariants.map((v) => {
                     const isSelected = v.product.id === product.id;
-                    const weightBadge = extractWeightBadge(v.product.weight, v.product.description);
+                    const weightBadge = extractWeightBadge((v.product as any).actual_weight, v.product.weight, v.product.description);
                     return (
                       <button
                         key={v.product.id}
@@ -243,6 +245,30 @@ export default function ProductDetailPage() {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                    Khối lượng / Quy cách:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#ff7f5c] text-white border-2 border-[#ff7f5c] shadow-sm inline-flex items-center gap-1.5">
+                      <span>⚖️</span>
+                      <span>{extractWeightBadge((product as any).actual_weight, product.weight, product.description) || product.weight || 'Tiêu chuẩn'}</span>
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                    <span className="text-gray-400 block text-[11px]">Thương hiệu</span>
+                    <span className="font-bold text-gray-800">Mèo Cưng Official</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                    <span className="text-gray-400 block text-[11px]">Tình trạng kho</span>
+                    <span className="font-bold text-emerald-600">Sẵn hàng • Giao ngay</span>
+                  </div>
                 </div>
               </div>
             )}
