@@ -66,6 +66,7 @@ async function ensureOrderTable(): Promise<void> {
   await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "tracking_code" text NULL;`);
   await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "internal_note" text NULL;`);
   await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "timeline" jsonb NOT NULL DEFAULT '[]'::jsonb;`);
+  await pool.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "deleted_at" timestamptz NULL;`);
   globalForOrderPg.__meocungOrdersTableReady = true;
 }
 
@@ -156,7 +157,7 @@ export async function listNeonOrders(options?: {
   await ensureOrderTable();
   const pool = getPool();
   const params: unknown[] = [];
-  const where: string[] = ['1=1'];
+  const where: string[] = ['"deleted_at" IS NULL'];
 
   if (
     options?.status &&
@@ -248,7 +249,7 @@ export async function deleteNeonOrder(id: string): Promise<boolean> {
   await ensureOrderTable();
   const pool = getPool();
   const { rowCount } = await pool.query(
-    `DELETE FROM "orders" WHERE "id" = $1`,
+    `UPDATE "orders" SET "deleted_at" = now(), "updated_at" = now() WHERE "id" = $1`,
     [Number(id)]
   );
   return (rowCount || 0) > 0;
@@ -266,8 +267,9 @@ export async function listNeonOrdersByCustomer(user: {
 
   const { rows } = await pool.query(
     `SELECT * FROM "orders"
-     WHERE ($1 <> '' AND "user_id" = $1)
-        OR ($2 <> '' AND LOWER(COALESCE("customer_email", '')) = $2)
+     WHERE "deleted_at" IS NULL
+       AND (($1 <> '' AND "user_id" = $1)
+         OR ($2 <> '' AND LOWER(COALESCE("customer_email", '')) = $2))
      ORDER BY "created_at" DESC
      LIMIT 100`,
     [userId, email]

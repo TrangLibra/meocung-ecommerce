@@ -22,9 +22,11 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;`);
     const res = await pool.query(
       `SELECT id, email, role, login_attempts, lock_until, created_at, updated_at
        FROM users
+       WHERE deleted_at IS NULL
        ORDER BY id ASC`
     );
     return NextResponse.json({ staff: res.rows }, { headers: corsHeaders });
@@ -85,8 +87,9 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ success: false, error: 'Thiếu ID nhân viên' }, { status: 400, headers: corsHeaders });
     }
-    await pool.query('DELETE FROM users WHERE id = $1', [id]);
-    return NextResponse.json({ success: true }, { headers: corsHeaders });
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;`);
+    await pool.query('UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, softDeleted: true }, { headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500, headers: corsHeaders });
   }

@@ -58,8 +58,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Vui lòng nhập Email và Mật khẩu' }, { status: 400, headers: corsHeaders });
     }
 
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;`);
     const res = await pool.query(
-      `SELECT id, email, role, hash, salt, lock_until, full_name, phone, avatar_url, job_title FROM users WHERE LOWER(email) = $1 LIMIT 1`,
+      `SELECT id, email, role, hash, salt, lock_until, full_name, phone, avatar_url, job_title FROM users WHERE LOWER(email) = $1 AND deleted_at IS NULL LIMIT 1`,
       [email]
     );
 

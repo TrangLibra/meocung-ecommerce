@@ -84,11 +84,12 @@ export async function OPTIONS() {
 export async function GET(request: NextRequest) {
   try {
     await ensureCommerceRulesTable();
+    await pool.query(`ALTER TABLE commerce_rules ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;`);
     const { searchParams } = new URL(request.url);
     const ruleType = searchParams.get('rule_type');
     const res = ruleType
-      ? await pool.query(`SELECT * FROM commerce_rules WHERE rule_type = $1 ORDER BY id DESC`, [ruleType])
-      : await pool.query(`SELECT * FROM commerce_rules ORDER BY id DESC`);
+      ? await pool.query(`SELECT * FROM commerce_rules WHERE rule_type = $1 AND deleted_at IS NULL ORDER BY id DESC`, [ruleType])
+      : await pool.query(`SELECT * FROM commerce_rules WHERE deleted_at IS NULL ORDER BY id DESC`);
     return NextResponse.json({ rules: res.rows }, { headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
@@ -150,8 +151,9 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'Thiếu id' }, { status: 400, headers: corsHeaders });
     }
-    await pool.query(`DELETE FROM commerce_rules WHERE id = $1`, [Number(id)]);
-    return NextResponse.json({ deleted: true, id: Number(id) }, { headers: corsHeaders });
+    await pool.query(`ALTER TABLE commerce_rules ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;`);
+    await pool.query(`UPDATE commerce_rules SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1`, [Number(id)]);
+    return NextResponse.json({ deleted: true, softDeleted: true, id: Number(id) }, { headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
   }

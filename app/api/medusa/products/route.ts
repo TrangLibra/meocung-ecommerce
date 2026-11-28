@@ -203,8 +203,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Thiếu ID cần xóa' }, { status: 400, headers: corsHeaders });
     }
 
-    await pool.query('DELETE FROM product WHERE id = $1', [id]);
-    return NextResponse.json({ success: true, message: 'Đã xóa sản phẩm khỏi Database' }, { headers: corsHeaders });
+    await pool.query('UPDATE product SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, softDeleted: true, message: 'Đã ẩn (soft delete) sản phẩm khỏi Database' }, { headers: corsHeaders });
   } catch (err: any) {
     console.error('Error deleting product from PostgreSQL:', err);
     return NextResponse.json({ success: false, message: err.message }, { status: 500, headers: corsHeaders });

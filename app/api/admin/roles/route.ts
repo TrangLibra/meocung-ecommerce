@@ -105,7 +105,8 @@ export async function OPTIONS() {
 export async function GET() {
   try {
     await ensureRolesTable();
-    const res = await pool.query('SELECT * FROM admin_roles ORDER BY id ASC');
+    await pool.query(`ALTER TABLE admin_roles ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;`);
+    const res = await pool.query('SELECT * FROM admin_roles WHERE deleted_at IS NULL ORDER BY id ASC');
     return NextResponse.json({ roles: res.rows }, { headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ roles: [], error: err.message }, { status: 500, headers: corsHeaders });
@@ -160,8 +161,9 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ success: false, error: 'Thiếu ID vai trò' }, { status: 400, headers: corsHeaders });
     }
-    await pool.query('DELETE FROM admin_roles WHERE id = $1', [id]);
-    return NextResponse.json({ success: true }, { headers: corsHeaders });
+    await pool.query(`ALTER TABLE admin_roles ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;`);
+    await pool.query('UPDATE admin_roles SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1', [id]);
+    return NextResponse.json({ success: true, softDeleted: true }, { headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500, headers: corsHeaders });
   }
