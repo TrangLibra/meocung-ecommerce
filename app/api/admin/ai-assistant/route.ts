@@ -8,9 +8,10 @@ import {
   createNeonCategory,
   deleteNeonCategory,
 } from '@/lib/neon-products';
-import { listNeonOrders, updateNeonOrder, type OrderStatus } from '@/lib/neon-orders';
-import { createNeonUser, listNeonUsers } from '@/lib/neon-users';
+import { listNeonOrders, updateNeonOrder, deleteNeonOrder, type OrderStatus } from '@/lib/neon-orders';
+import { createNeonUser, listNeonUsers, deleteNeonUser } from '@/lib/neon-users';
 import { recordAdminAuditLog } from '@/lib/neon-audit-logs';
+import { createNeonNewsPost, deleteNeonNewsPost, listNeonNewsPosts, updateNeonNewsPost } from '@/lib/neon-posts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -22,9 +23,35 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
-async function callGeminiJson(apiKey: string, systemPrompt: string, userMessage: string) {
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+async function callGeminiJson(
+  apiKey: string,
+  systemPrompt: string,
+  userMessage: string,
+  files: { name: string; mimeType: string; textContent?: string; base64?: string }[] = []
+) {
+  const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
   let lastErr = '';
+  const parts: any[] = [];
+  let extraText = '';
+  for (const f of files.slice(0, 5)) {
+    if (f.textContent) {
+      extraText += `\n\n--- NỘI DUNG FILE: ${f.name} ---\n${f.textContent}\n--- HẾT FILE ---`;
+    } else if (f.base64) {
+      if (f.mimeType === 'application/pdf' || f.mimeType.startsWith('image/')) {
+        parts.push({ inlineData: { mimeType: f.mimeType, data: f.base64 } });
+      } else {
+        // Best-effort UTF-8 text extraction for DOCX/XML/etc.
+        try {
+          const decoded = Buffer.from(f.base64, 'base64').toString('utf8').replace(/<[^>]+>/g, ' ').replace(/[^\x20-\x7E\u00C0-\u1EF9\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+          if (decoded) {
+            extraText += `\n\n--- NỘI DUNG TRÍCH XUẤT TỪ FILE: ${f.name} ---\n${decoded.slice(0, 15000)}\n--- HẾT FILE ---`;
+          }
+        } catch {}
+      }
+    }
+  }
+  parts.unshift({ text: `${systemPrompt}${extraText}\n\nYêu cầu của Admin: ${userMessage}` });
+
   for (const model of models) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
     const res = await fetch(url, {
@@ -34,7 +61,7 @@ async function callGeminiJson(apiKey: string, systemPrompt: string, userMessage:
         contents: [
           {
             role: 'user',
-            parts: [{ text: `${systemPrompt}\n\nYêu cầu của Admin: ${userMessage}` }],
+            parts,
           },
         ],
         generationConfig: {
@@ -60,6 +87,7 @@ export async function POST(request: Request) {
     const message = typeof body.message === 'string' ? body.message.trim() : '';
     const attachedImage = typeof body.image === 'string' ? body.image.trim() : '';
     const excelRows = Array.isArray(body.excelRows) ? body.excelRows : [];
+    const attachedFiles = Array.isArray(body.files) ? body.files : [];
 
     // Fast bulk import OR bulk delete from Excel + matched folder images
     if (excelRows.length > 0) {
@@ -275,12 +303,19 @@ BẮT BUỘC trả về JSON hợp lệ theo đúng cấu trúc:
 {
   "reply": "Câu trả lời ngắn gọn, rõ ràng bằng tiếng Việt",
   "action": {
-    "type": "none" | "create_voucher" | "delete_voucher" | "create_product" | "update_product" | "delete_product" | "create_category" | "delete_category" | "update_order_status" | "create_customer",
+    "type": "none" | "create_voucher" | "delete_voucher" | "create_product" | "update_product" | "delete_product" | "adjust_inventory" | "bulk_discount_category" | "create_category" | "delete_category" | "update_order_status" | "delete_order" | "create_customer" | "delete_customer" | "create_post" | "update_post" | "delete_post",
     "payload": {}
   }
 }
 
 Quy tắc payload theo từng action.type:
+- "adjust_inventory": { "name": "Tên SP hoặc SKU", "delta": number (số lượng cộng thêm hoặc trừ bớt, vd +20 hoặc -5), "set_inventory": number (nếu muốn đặt thẳng số tồn kho) }
+- "bulk_discount_category": { "category": "thuc-an-hat"|"pate-cho-meo"|"cat-ve-sinh"|"phu-kien", "percent": number (1-80) }
+- "delete_order": { "order_code": "MC..." }
+- "delete_customer": { "email": "email@..." }
+- "create_post": { "title": "Tiêu đề bài tin tức", "category": "Tin tức"|"Dinh dưỡng"|"Chăm sóc mèo", "excerpt": "Tóm tắt ngắn 1-2 câu", "content": "Nội dung bài viết đầy đủ, hấp dẫn, chia đoạn rõ ràng bằng tiếng Việt" }
+- "update_post": { "title": "Tiêu đề bài viết cần sửa", "new_title": "tiêu đề mới (tuỳ chọn)", "excerpt": "tóm tắt mới (tuỳ chọn)", "content": "nội dung mới (tuỳ chọn)", "image": "url ảnh nếu có" }
+- "delete_post": { "title": "Tiêu đề bài viết cần xóa" }
 - "create_voucher": { "code": "UPPERCASE", "title": "Tên chương trình", "type": "percent"|"fixed"|"freeship", "discount_value": number (0 nếu freeship), "min_order": number }
 - "delete_voucher": { "code": "MÃ_VOUCHER" }
 - "create_product": { "name": "Tên SP", "price": number, "inventory": number, "weight": "1kg", "category": "handle danh mục", "image": "url ảnh nếu có", "description": "mô tả ngắn" }
@@ -299,12 +334,13 @@ Quy tắc payload theo từng action.type:
       'phu-kien': 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?w=800&auto=format&fit=crop&q=80',
     };
 
-    const aiResult = await callGeminiJson(apiKey, systemPrompt, message);
+    const aiResult = await callGeminiJson(apiKey, systemPrompt, message, attachedFiles);
     const actionType = aiResult?.action?.type || 'none';
     const payload = aiResult?.action?.payload || {};
     let reply = String(aiResult?.reply || 'Đã xử lý yêu cầu của bạn.');
     let actionExecuted = false;
     const refreshTargets: string[] = [];
+    let actionLink: { label: string; url: string; tab?: string } | null = null;
 
     if (actionType === 'create_voucher' && payload.code) {
       const created = await createNeonVoucher({
@@ -411,6 +447,107 @@ Quy tắc payload theo từng action.type:
       actionExecuted = true;
       refreshTargets.push('customers');
       reply = `✅ Đã tạo tài khoản khách hàng **${created.name}** (${created.email}) thành công!`;
+    } else if (actionType === 'create_post' && payload.title) {
+      const created = await createNeonNewsPost({
+        title: String(payload.title),
+        category: payload.category ? String(payload.category) : 'Tin tức',
+        excerpt: payload.excerpt ? String(payload.excerpt) : '',
+        content: String(payload.content || payload.excerpt || payload.title),
+        image: attachedImage || (typeof payload.image === 'string' ? payload.image.trim() : ''),
+      });
+      actionExecuted = true;
+      refreshTargets.push('posts');
+      actionLink = {
+        label: `Xem bài viết "${created.title}" →`,
+        url: `https://meocung-ecommerce-atoan.vercel.app/tin-tuc/${created.slug}`,
+        tab: 'posts',
+      };
+      reply = `✅ Đã viết và đăng bài tin tức **${created.title}**${attachedImage ? ' (kèm hình ảnh bạn gửi)' : ''} thành công!`;
+    } else if (actionType === 'update_post' && payload.title) {
+      const allPosts = await listNeonNewsPosts().catch(() => []);
+      const q = String(payload.title).toLowerCase();
+      const target = allPosts.find((p) => p.title.toLowerCase().includes(q));
+      if (target) {
+        const nextImg = attachedImage || (typeof payload.image === 'string' && payload.image.trim()) || target.image;
+        const updated = await updateNeonNewsPost(target.id, {
+          title: payload.new_title ? String(payload.new_title) : target.title,
+          excerpt: payload.excerpt ? String(payload.excerpt) : target.excerpt,
+          content: payload.content ? String(payload.content) : target.content,
+          image: nextImg,
+        });
+        if (updated) {
+          actionExecuted = true;
+          refreshTargets.push('posts');
+          actionLink = {
+            label: `Xem bài viết "${updated.title}" →`,
+            url: `https://meocung-ecommerce-atoan.vercel.app/tin-tuc/${updated.slug}`,
+            tab: 'posts',
+          };
+          reply = `✅ Đã cập nhật bài viết **${updated.title}**${nextImg !== target.image ? ' (đã đổi ảnh đại diện)' : ''} thành công!`;
+        }
+      } else {
+        reply = `⚠️ Không tìm thấy bài viết khớp với "${payload.title}".`;
+      }
+    } else if (actionType === 'delete_post' && payload.title) {
+      const allPosts = await listNeonNewsPosts().catch(() => []);
+      const q = String(payload.title).toLowerCase();
+      const target = allPosts.find((p) => p.title.toLowerCase().includes(q));
+      if (target) {
+        await deleteNeonNewsPost(target.id);
+        actionExecuted = true;
+        refreshTargets.push('posts');
+        reply = `🗑️ Đã xóa bài viết **${target.title}**!`;
+      } else {
+        reply = `⚠️ Không tìm thấy bài viết khớp với "${payload.title}".`;
+      }
+    } else if (actionType === 'adjust_inventory' && payload.name) {
+      const q = String(payload.name).toLowerCase();
+      const target = products.find((p) => p.name.toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase() === q));
+      if (target) {
+        const nextInv = payload.set_inventory !== undefined
+          ? Math.max(0, Number(payload.set_inventory) || 0)
+          : Math.max(0, (Number(target.inventory) || 0) + (Number(payload.delta) || 0));
+        await upsertNeonProduct({ ...target, inventory: nextInv });
+        actionExecuted = true;
+        refreshTargets.push('products');
+        reply = `📦 Đã cập nhật tồn kho **${target.name}**: ${target.inventory} → **${nextInv}** sản phẩm!`;
+      } else {
+        reply = `⚠️ Không tìm thấy sản phẩm khớp với "${payload.name}".`;
+      }
+    } else if (actionType === 'bulk_discount_category' && payload.category && payload.percent) {
+      const pct = Math.min(80, Math.max(1, Number(payload.percent) || 10));
+      const cat = String(payload.category).toLowerCase();
+      const targets = products.filter((p) => p.category.toLowerCase() === cat);
+      for (const p of targets) {
+        const newPrice = Math.max(1000, Math.round((p.price * (100 - pct)) / 100 / 1000) * 1000);
+        await upsertNeonProduct({ ...p, price: newPrice });
+      }
+      actionExecuted = targets.length > 0;
+      refreshTargets.push('products');
+      reply = targets.length > 0
+        ? `🏷️ Đã giảm giá **${pct}%** cho **${targets.length} sản phẩm** thuộc danh mục **${cat}**!`
+        : `⚠️ Không có sản phẩm nào trong danh mục "${cat}".`;
+    } else if (actionType === 'delete_order' && payload.order_code) {
+      const codeNorm = String(payload.order_code).replace(/^#/, '').toLowerCase();
+      const target = orders.find((o) => o.order_code.toLowerCase() === codeNorm);
+      if (target) {
+        await deleteNeonOrder(target.id);
+        actionExecuted = true;
+        refreshTargets.push('orders');
+        reply = `🗑️ Đã xóa đơn hàng **#${target.order_code}**!`;
+      } else {
+        reply = `⚠️ Không tìm thấy đơn hàng **#${payload.order_code}**.`;
+      }
+    } else if (actionType === 'delete_customer' && payload.email) {
+      const target = customers.find((c) => c.email.toLowerCase() === String(payload.email).toLowerCase());
+      if (target) {
+        await deleteNeonUser(target.id);
+        actionExecuted = true;
+        refreshTargets.push('customers');
+        reply = `🗑️ Đã xóa tài khoản khách hàng **${target.email}**!`;
+      } else {
+        reply = `⚠️ Không tìm thấy khách hàng **${payload.email}**.`;
+      }
     }
 
     if (actionExecuted) {
@@ -436,7 +573,7 @@ Quy tắc payload theo từng action.type:
     }
 
     return NextResponse.json(
-      { reply, actionExecuted, actionType, refreshTargets },
+      { reply, actionExecuted, actionType, refreshTargets, link: actionLink },
       { status: 200, headers: CORS_HEADERS }
     );
   } catch (err: any) {
