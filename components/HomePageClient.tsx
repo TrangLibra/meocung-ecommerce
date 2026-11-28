@@ -77,14 +77,24 @@ export default function HomePageClient({
     if (sec.visible === false) return null;
 
     if (sec.id === 'hero') {
+      const heroText = homeCfg?.hero_text_color || '#ffffff';
+      const showHotline = homeCfg?.hero_show_hotline !== false;
+      const hotlineText = homeCfg?.hero_hotline_label || (activeBanner.hotline ? `Hotline: ${activeBanner.hotline}` : '');
+      const heroMascot = homeCfg?.hero_mascot !== undefined ? homeCfg.hero_mascot : '🐱';
+      const heroImage = homeCfg?.hero_image || '';
       return (
         <section
           key={`sec-hero-${idx}`}
-          className="relative overflow-hidden rounded-3xl p-8 sm:p-12 text-white shadow-xl shadow-orange-100"
-          style={{ background: `linear-gradient(135deg, ${heroBg}, ${heroBg}dd)` }}
+          className="relative overflow-hidden rounded-3xl p-8 sm:p-12 shadow-xl shadow-orange-100"
+          style={{
+            background: heroImage
+              ? `linear-gradient(135deg, ${heroBg}e6, ${heroBg}cc), url(${heroImage}) center/cover no-repeat`
+              : `linear-gradient(135deg, ${heroBg}, ${heroBg}dd)`,
+            color: heroText,
+          }}
         >
           <div className="max-w-2xl space-y-5 relative z-10">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold uppercase tracking-wider text-white border border-white/20">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold uppercase tracking-wider border border-white/20" style={{ color: heroText }}>
               <span>{activeBanner.badge}</span>
             </div>
 
@@ -92,7 +102,7 @@ export default function HomePageClient({
               {activeBanner.title}
             </h1>
 
-            <p className="text-white/90 text-sm sm:text-base leading-relaxed max-w-xl">
+            <p className="text-sm sm:text-base leading-relaxed max-w-xl opacity-90">
               {activeBanner.subtitle}
             </p>
 
@@ -106,20 +116,23 @@ export default function HomePageClient({
                 <ArrowRight className="w-4 h-4" />
               </Link>
 
-              {activeBanner.hotline && (
+              {showHotline && hotlineText && (
                 <a
-                  href={`tel:${activeBanner.hotline.replace(/\s+/g, '')}`}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-black/15 hover:bg-black/25 text-white font-semibold text-sm transition border border-white/20"
+                  href={`tel:${(activeBanner.hotline || '0382542737').replace(/\s+/g, '')}`}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-black/15 hover:bg-black/25 font-semibold text-sm transition border border-white/20"
+                  style={{ color: heroText }}
                 >
-                  <span>Hotline: {activeBanner.hotline}</span>
+                  <span>{hotlineText}</span>
                 </a>
               )}
             </div>
           </div>
 
-          <div className="absolute right-4 bottom-0 text-[160px] sm:text-[220px] select-none opacity-25 pointer-events-none transform translate-y-8">
-            🐱
-          </div>
+          {heroMascot && (
+            <div className="absolute right-4 bottom-0 text-[160px] sm:text-[220px] select-none opacity-25 pointer-events-none transform translate-y-8">
+              {heroMascot}
+            </div>
+          )}
         </section>
       );
     }
