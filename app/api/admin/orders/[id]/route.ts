@@ -20,6 +20,8 @@ export async function PATCH(
     const updated = await updateNeonOrder(params.id, {
       status: body.status as OrderStatus | undefined,
       tracking_code: body.tracking_code,
+      internal_note: body.internal_note,
+      timeline_message: body.timeline_message,
     });
     if (!updated) {
       return NextResponse.json(
