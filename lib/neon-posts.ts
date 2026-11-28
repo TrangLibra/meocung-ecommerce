@@ -47,6 +47,7 @@ function extractTextFromContent(raw: any): string {
   if (!raw) return '';
   if (typeof raw === 'string') return raw;
   if (typeof raw === 'object') {
+    if (typeof raw.html === 'string') return raw.html;
     if (typeof raw.text === 'string') return raw.text;
     if (raw.root && Array.isArray(raw.root.children)) {
       return raw.root.children
